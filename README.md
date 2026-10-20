@@ -16,7 +16,7 @@ Python + Django only; Django templates for the frontend.
 | 7 | dispatch | Done (this README section) |
 | 8 | materials | Done (this README section) |
 | 9 | handover | Done (this README section) |
-| 10 | Demo video and pilot rollout | Not part of the code (see Known limitations) |
+| 10 | Demo video | Pending final recording |
 
 ## Architecture
 
@@ -308,12 +308,18 @@ generated `apps/*/migrations/0*.py` files and start again.
 ## Tests
 
 ```bash
-python manage.py test                      # 821 tests
+python manage.py test                      # 838 tests
 python manage.py test apps.handover        # Step 9 only
 ```
 
 Beyond the scenario tests, the critical rules were each broken on purpose (one line changed at a time) to
 confirm that at least one test fails: 48 deliberate one-line breakages of the Step 9 rules (and the production hooks they depend on) were each caught by at least one test. A surviving change would mean a rule that no test protects.
+
+## Demo video
+
+Screen recording with voice narration explaining the project structure, key business rules, and a live walkthrough of the implemented workflows.
+
+**Video:** [Add demo video link here]
 
 ## Roles
 
