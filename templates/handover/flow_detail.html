@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Flow {{ flow.traveler.work_order.number }}{% endblock %}
+{% block header %}
+{% url 'handover:flow_list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Release flow" url=crumb_url current=flow.traveler.work_order.number %}
+<div class="page-head">
+  <div class="titles"><div class="eyebrow">Release flow</div><h1>{{ flow.traveler.work_order.number }}: {{ flow.traveler.work_order.part.part_number }}</h1></div>
+  <div class="actions"><a class="btn btn-ghost" href="{% url 'production:traveler_detail' flow.traveler.pk %}">Traveler</a></div>
+</div>
+{% endblock %}
+{% block content %}
+  {% if flow.ready %}
+    <div class="hero ok"><div class="ico">{% icon "check" %}</div><div class="grow"><h2><span class="chip green">Cleared for dispatch</span></h2><p>All five stages are green.</p></div></div>
+  {% else %}
+    <div class="hero bad"><div class="ico">{% icon "lock" %}</div><div class="grow"><h2><span class="chip red">Not cleared: {{ flow.current.title }}</span></h2><p>The stage below names exactly what is missing.</p></div></div>
+  {% endif %}
+  <section class="section"><header>{% icon "flow" %}<h2>Material to dispatch</h2></header><div class="body">{% include "handover/_stages.html" %}</div></section>
+{% endblock %}

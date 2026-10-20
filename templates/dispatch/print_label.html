@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Crate label{% endblock %}
+{% block content %}
+  <h1>Crate {{ label.crate_number }} &ndash; customer verification label</h1>
+  {% include "dispatch/_doc_head.html" %}
+  <p>Scan the QR code to open the certified inspection report. The code is digitally signed and cannot be forged.</p>
+  <p><strong>QR payload</strong></p>
+  <textarea readonly rows="3" style="width:100%">{{ url }}</textarea>
+  <p><a href="{{ url }}">Open the customer certificate</a></p>
+  <p><a href="{% url 'dispatch:manifest' manifest.pk %}">&larr; Manifest</a></p>
+{% endblock %}

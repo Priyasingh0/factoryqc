@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Users{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Users" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Administration</div><h1>Users &amp; roles</h1>
+<p>Access follows each user's role permissions. Accounts are managed in the admin site.</p></div></div>
+{% endblock %}
+{% block content %}
+  <div class="filter-bar"><input type="search" class="search" placeholder="Search ID, username, name or role…" aria-label="Search users" data-table-filter="tbl-user-list"></div>
+  <div class="table-wrap sticky"><table id="tbl-user-list">
+    <thead><tr><th>Employee ID</th><th>Username</th><th>Name</th><th>Role</th><th>Active</th></tr></thead>
+    <tbody>
+      {% for u in users %}
+        <tr>
+          <td class="mono">{{ u.employee_id }}</td>
+          <td><strong>{{ u.username }}</strong></td>
+          <td>{{ u.get_full_name }}</td>
+          <td><span class="badge b-info">{{ u.get_role_display }}</span></td>
+          <td>{% if u.is_active %}<span class="badge b-success">Yes</span>{% else %}<span class="badge b-neutral">No</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

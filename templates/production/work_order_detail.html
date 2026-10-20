@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{{ wo.number }}{% endblock %}
+{% block header %}
+{% url 'production:work_order_list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Work orders" url=crumb_url current=wo.number %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Work order</div>
+<h1>{{ wo.number }} &ndash; {{ wo.part.part_number }} &times; {{ wo.quantity }} {% if wo.is_released %}<span class="badge b-success">Released</span>{% else %}<span class="badge b-neutral">Not released</span>{% endif %}</h1></div>
+<div class="actions">
+  {% if wo.is_released %}{% for t in travelers %}<a class="btn" href="{% url 'production:traveler_detail' t.pk %}">Open job traveler</a>{% endfor %}{% endif %}
+  {% if not wo.is_released and perms.materials.issue_material %}<a class="btn btn-ghost" href="{% url 'materials:issue' wo.pk %}">Issue raw material</a>{% endif %}
+</div></div>
+{% endblock %}
+{% block content %}
+  <div class="summary">
+    <div class="sum accent"><div class="k">Part</div><div class="v">{{ wo.part.part_number }}</div></div>
+    <div class="sum"><div class="k">Quantity</div><div class="v">{{ wo.quantity }}</div></div>
+    <div class="sum"><div class="k">Customer PO</div><div class="v">{{ wo.customer_po|default:"–" }}</div></div>
+    <div class="sum"><div class="k">Heat number</div><div class="v" style="font-family:var(--mono)">{{ wo.heat_number|default:"–" }}</div></div>
+  </div>
+  {% if wo.is_released %}
+    <div class="alert alert-success">{% icon "check" %}<div>Released by {{ wo.released_by.get_username }} on {{ wo.released_at|date:"d M Y H:i" }}.</div></div>
+  {% else %}
+    {% if problems %}
+      <div class="alert alert-warn">{% icon "alert" %}<div><strong>Not ready to release:</strong><ul>{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul></div></div>
+    {% endif %}
+    {% if can_release %}
+      <form method="post" action="{% url 'production:release' wo.pk %}" style="margin-bottom:1rem">{% csrf_token %}
+        <button type="submit" class="btn-lg" data-confirm="Release this work order? It cannot be changed afterwards.">Release &amp; generate traveler</button>
+      </form>
+    {% endif %}
+  {% endif %}
+
+  <section class="section">
+    <header>{% icon "material" %}<h2>Raw material</h2></header>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Lot</th><th>Heat no.</th><th>Supplier</th><th>Issued</th><th>Lot status</th></tr></thead>
+      <tbody>
+        {% for issue in lots %}
+          <tr>
+            <td>{% if perms.materials.view_rawmaterialintake %}<a class="row-link" href="{% url 'materials:detail' issue.intake.pk %}">{{ issue.intake.lot_number }}</a>{% else %}{{ issue.intake.lot_number }}{% endif %}</td>
+            <td class="mono">{{ issue.intake.heat_number }}</td><td>{{ issue.intake.supplier.name }}</td>
+            <td>{{ issue.quantity }} {{ issue.intake.get_unit_display }}</td>
+            <td>{% if issue.intake.status == "CLEARED" %}<span class="badge b-success">Cleared</span>{% else %}<span class="badge b-danger">{{ issue.intake.get_status_display }}</span>{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty-cell">No raw material issued yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="section">
+    <header>{% icon "flow" %}<h2>Process routing</h2></header>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Op</th><th>Name</th><th>Hold</th><th>First piece</th><th>Periodic check</th><th>Final PDI</th></tr></thead>
+      <tbody>
+        {% for r in routing %}
+          <tr>
+            <td><strong>{{ r.op_number }}</strong></td><td>{{ r.name }}</td>
+            <td>{% if r.hold_minutes %}{{ r.hold_minutes }} min{% else %}&ndash;{% endif %}</td>
+            <td>{{ r.requires_first_piece|yesno:"Required,&ndash;" }}</td>
+            <td>{% if r.inspection_interval_minutes %}every {{ r.inspection_interval_minutes }} min{% endif %}{% if r.inspection_every_parts %} / every {{ r.inspection_every_parts }} parts{% endif %}{% if not r.has_periodic_inspection %}&ndash;{% endif %}</td>
+            <td>{{ r.is_final_pdi|yesno:"Yes,&ndash;" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty-cell">This part has no routing. Add steps in the admin site.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+{% endblock %}

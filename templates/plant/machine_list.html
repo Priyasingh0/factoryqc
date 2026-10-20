@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Machines{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Machines" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Plant</div><h1>Machines &amp; workstations</h1>
+<p>Job selection stays locked until the shift's PM and safety checks are recorded.</p></div></div>
+{% endblock %}
+{% block content %}
+  <div class="filter-bar"><input type="search" class="search" placeholder="Search by code, name or department…" aria-label="Search machines" data-table-filter="tbl-machine-list"></div>
+  <div class="table-wrap sticky"><table id="tbl-machine-list">
+    <thead><tr><th>Code</th><th>Name</th><th>Department</th><th>Job selection</th></tr></thead>
+    <tbody>
+      {% for machine, readiness in rows %}
+        <tr class="{% if not readiness.ready %}row-ctq{% endif %}">
+          <td><a class="row-link" href="{% url 'plant:machine_detail' machine.pk %}">{{ machine.code }}</a></td>
+          <td>{{ machine.name }}</td>
+          <td>{{ machine.department.name }}</td>
+          <td>
+            {% if readiness.ready %}<span class="badge b-success">Ready</span>
+            {% else %}<span class="badge b-danger">Locked</span> <small>{{ readiness.reason }}</small>{% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">{% include "partials/_empty_card.html" with icon="machine" title="No machines registered yet" text="No machines registered yet. Add them in the admin site." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

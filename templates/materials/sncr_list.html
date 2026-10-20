@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}SNCRs{% endblock %}
+{% block header %}
+{% url 'materials:list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Materials" url=crumb_url current="SNCRs" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Supply</div><h1>Supplier non-conformance reports</h1>
+<p>Every supplier-quality issue is raised against an intake lot and stays on record.</p></div></div>
+{% endblock %}
+{% block content %}
+  <div class="filter-bar"><input type="search" class="search" placeholder="Search SNCR, lot, supplier or reason…" aria-label="Search SNCRs" data-table-filter="tbl-sncr-list"></div>
+  <div class="table-wrap sticky"><table id="tbl-sncr-list">
+    <thead><tr><th>SNCR</th><th>Lot</th><th>Supplier</th><th>Reason</th><th>Raised</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for s in object_list %}
+        <tr class="{% if s.status == 'OPEN' %}row-danger{% endif %}">
+          <td class="mono"><strong>{{ s.number }}</strong></td>
+          <td>{% if perms.materials.view_rawmaterialintake %}<a class="row-link" href="{% url 'materials:detail' s.intake.pk %}">{{ s.intake.lot_number }}</a>{% else %}{{ s.intake.lot_number }}{% endif %}</td>
+          <td>{{ s.intake.supplier.name }}</td><td>{{ s.get_reason_code_display }}</td><td>{{ s.raised_at|date:"d M H:i" }}</td>
+          <td>{% if s.status == "OPEN" %}<span class="badge b-danger">Open</span>{% else %}<span class="badge b-success">{{ s.get_resolution_display }}</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">{% include "partials/_empty_card.html" with icon="alert" title="No SNCRs" text="No SNCRs. They are raised automatically when an intake is rejected." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

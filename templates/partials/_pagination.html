@@ -1,0 +1,10 @@
+{% load ui %}{% if is_paginated %}
+<nav class="pager" aria-label="Pagination">
+  <span class="pager-info">Showing {{ page_obj.start_index }}&ndash;{{ page_obj.end_index }} of {{ paginator.count }}</span>
+  <span class="pager-btns">
+    {% if page_obj.has_previous %}<a class="pg" href="{% querystring page=page_obj.previous_page_number %}" rel="prev">{% icon "chevron" "pg-prev" %}Previous</a>{% else %}<span class="pg off">{% icon "chevron" "pg-prev" %}Previous</span>{% endif %}
+    <span class="pg-now">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="pg" href="{% querystring page=page_obj.next_page_number %}" rel="next">Next{% icon "chevron" "pg-next" %}</a>{% else %}<span class="pg off">Next{% icon "chevron" "pg-next" %}</span>{% endif %}
+  </span>
+</nav>
+{% endif %}

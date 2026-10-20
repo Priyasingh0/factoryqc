@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Manifest {{ manifest.pk }}{% endblock %}
+{% block header %}
+{% url 'dispatch:board' as crumb_url %}{% include "partials/_crumbs.html" with parent="Dispatch" url=crumb_url current="Manifest" %}
+<div class="page-head">
+  <div class="titles"><h1>Shipment manifest {{ manifest.pk }} {% badge manifest.status manifest.get_status_display %}</h1>
+    <p>{{ manifest.traveler.work_order.number }} &middot; {{ manifest.traveler.work_order.part.part_number }}</p></div>
+  <div class="actions"><a class="btn btn-ghost" href="{% url 'dispatch:check' manifest.traveler.pk %}">{% icon "shield" %}Pre-dispatch check</a></div>
+</div>
+{% endblock %}
+{% block content %}
+  <div class="summary">
+    <div class="sum accent"><div class="k">Customer PO</div><div class="v">{{ manifest.customer_po|default:"&ndash;" }}</div></div>
+    <div class="sum"><div class="k">Vehicle</div><div class="v">{{ manifest.vehicle_number|default:"&ndash;" }}</div></div>
+    <div class="sum"><div class="k">Parts</div><div class="v">{{ manifest.batch_size }}</div></div>
+    <div class="sum {% if result.cleared %}accent{% else %}bad{% endif %}"><div class="k">Interlock</div><div class="v">{% if result.cleared %}Green{% else %}Locked{% endif %}</div></div>
+  </div>
+  {% if not result.cleared %}
+    <div class="clear-hero stop"><div class="ch-ico">{% icon "lock" %}</div><div><div class="ch-state">SHIPPING INTERLOCK &ndash; documents are locked</div>
+      <ul style="margin:.5rem 0 0 1.1rem;padding:0;font-size:.92rem">{% for p in result.problems %}<li>{{ p }}</li>{% endfor %}</ul></div><span></span></div>
+  {% endif %}
+
+  <div class="docs">
+    <div class="doc-card {% if gate_pass %}issued{% endif %}">
+      <div class="dh"><span class="di">{% icon "shield" %}</span><h3>Dispatch gate pass</h3><span style="margin-left:auto">{% if gate_pass %}<span class="badge b-success">Issued</span>{% else %}<span class="badge b-neutral">Not issued</span>{% endif %}</span></div>
+      <div class="num">{{ gate_pass.number|default:"&ndash;" }}</div>
+      <div class="da">{% if gate_pass %}<a class="btn btn-sm btn-ghost" href="{% url 'dispatch:print' manifest.pk 'gate-pass' %}">{% icon "print" %}Print</a>
+        {% elif can_gate_pass %}<form method="post" action="{% url 'dispatch:issue' manifest.pk 'gate-pass' %}" class="inline">{% csrf_token %}<button type="submit" class="btn-accent" data-confirm="Issue the gate pass? The goods are released from the plant.">Issue gate pass</button></form>{% else %}<span class="muted" style="font-size:.84rem">Issued by security or dispatch.</span>{% endif %}</div>
+    </div>
+    <div class="doc-card {% if packing_slip %}issued{% endif %}">
+      <div class="dh"><span class="di">{% icon "file" %}</span><h3>Packing slip</h3><span style="margin-left:auto">{% if packing_slip %}<span class="badge b-success">Issued</span>{% else %}<span class="badge b-neutral">Not issued</span>{% endif %}</span></div>
+      <div class="num">{{ packing_slip.number|default:"&ndash;" }}</div>
+      <div class="da">{% if can_documents %}<form method="post" action="{% url 'dispatch:issue' manifest.pk 'packing-slip' %}" class="inline">{% csrf_token %}<button type="submit" class="{% if packing_slip %}btn-ghost{% endif %}">{% if packing_slip %}Reprint{% else %}Issue{% endif %} packing slip</button></form>{% endif %}</div>
+    </div>
+    <div class="doc-card {% if invoice %}issued{% endif %}">
+      <div class="dh"><span class="di">{% icon "file" %}</span><h3>Commercial invoice</h3><span style="margin-left:auto">{% if invoice %}<span class="badge b-success">Issued</span>{% else %}<span class="badge b-neutral">Not issued</span>{% endif %}</span></div>
+      <div class="num">{{ invoice.number|default:"&ndash;" }}</div>
+      <div class="da">{% if can_documents %}<form method="post" action="{% url 'dispatch:issue' manifest.pk 'invoice' %}" class="inline">{% csrf_token %}<button type="submit" class="{% if invoice %}btn-ghost{% endif %}">{% if invoice %}Reprint{% else %}Issue{% endif %} invoice</button></form>{% endif %}</div>
+    </div>
+  </div>
+
+  <div class="grid cols-2" style="align-items:start">
+    <section class="section">
+      <header>{% icon "part" %}<h2>Crate QR labels</h2></header>
+      <div class="body">
+        <div class="chips-inline">{% for l in labels %}<a class="pill" href="{% url 'dispatch:label' l.pk %}">Crate {{ l.crate_number }}</a>{% empty %}<span class="muted">No labels yet.</span>{% endfor %}</div>
+        {% if can_documents %}<form method="post" action="{% url 'dispatch:issue' manifest.pk 'label' %}" style="margin-top:1rem">{% csrf_token %}<button type="submit" class="btn-ghost">{% icon "plus" %}New crate label</button></form>{% endif %}
+      </div>
+    </section>
+    <section class="section">
+      <header>{% icon "traveler" %}<h2>Serials on this manifest</h2><div class="right">{{ manifest.batch_size }}</div></header>
+      <div class="body"><div class="serial-chips">{% for i in items %}<span>{{ i.serial.serial_number }}</span>{% endfor %}</div></div>
+    </section>
+  </div>
+{% endblock %}

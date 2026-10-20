@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Sample tag{% endblock %}
+{% block content %}
+  <h1>Lab sample tag</h1>
+  <div class="card" style="max-width:480px;border:3px dashed #111">
+    <p style="font-size:28px"><strong>{{ intake.sample_tag }}</strong></p>
+    <p>Lot {{ intake.lot_number }} &middot; heat {{ intake.heat_number }} &middot; grade {{ intake.grade.code }}</p>
+    <p>{{ intake.supplier.name }} &middot; PO {{ intake.po_number }}</p>
+  </div>
+  <p><a href="{% url 'materials:detail' intake.pk %}">&larr; {{ intake.lot_number }}</a></p>
+{% endblock %}

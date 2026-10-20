@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Checklist templates{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Checklists" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Plant</div><h1>Checklist templates</h1>
+<p>Inspection checklists per part and operation, with revision history and an approval workflow.</p></div></div>
+{% endblock %}
+{% block content %}
+  <div class="filter-bar">
+    <input type="search" class="search" placeholder="Search part, type or author…" aria-label="Search templates" data-table-filter="tbl-template-list">
+    <div class="pills" role="group" aria-label="Filter by status"><a class="pill{% if not current_status %} on{% endif %}" href="?">All</a>
+      {% for value, label in statuses %}<a class="pill{% if value == current_status %} on{% endif %}" href="?status={{ value }}">{{ label }}</a>{% endfor %}</div>
+  </div>
+  <div class="table-wrap sticky"><table id="tbl-template-list">
+    <thead><tr><th>Part</th><th>Type</th><th>Op</th><th>Rev</th><th>Status</th><th>Author</th></tr></thead>
+    <tbody>
+      {% for t in templates_ %}
+        <tr>
+          <td><a class="row-link" href="{% url 'checklists:detail' t.pk %}">{{ t.part.part_number }}</a></td>
+          <td>{{ t.get_checklist_type_display }}</td>
+          <td>{{ t.operation_number|default:"&ndash;" }}</td>
+          <td>{{ t.revision }}</td>
+          <td>{% badge t.status t.get_status_display %}</td>
+          <td>{{ t.created_by.get_username }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">{% include "partials/_empty_card.html" with icon="checklist" title="No templates yet" text="No templates yet. Quality Engineers create drafts in the admin site." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

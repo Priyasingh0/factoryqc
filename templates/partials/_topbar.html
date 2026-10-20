@@ -1,0 +1,30 @@
+{% load ui %}
+<header class="topbar">
+  <button type="button" class="icon-btn menu-btn" data-nav-toggle aria-label="Open menu">{% icon "menu" %}</button>
+  <div class="topbar-title">
+    {% for section in nav_sections %}{% for item in section.items %}{% if item.active %}<span>{{ section.title }}</span><span class="sep">/</span><b>{{ item.label }}</b>{% endif %}{% endfor %}{% endfor %}
+    <span class="fb">Factory Operations &amp; Quality Control</span>
+  </div>
+  <div class="topbar-actions">
+    <span class="role-chip">{{ user.get_role_display }}</span>
+    <a class="icon-btn" href="{% url 'core:notifications' %}" aria-label="Notifications{% if unread_notifications %}, {{ unread_notifications }} unread{% endif %}" title="Notifications">
+      {% icon "bell" %}{% if unread_notifications %}<span class="dot">{{ unread_notifications }}</span>{% endif %}
+    </a>
+    <span class="sep-v" aria-hidden="true"></span>
+    <details class="user-menu" data-menu>
+      <summary aria-label="Account menu">
+        <span class="avatar">{{ user|initials }}</span>
+        <span class="who"><strong>{{ user.get_username }}</strong><span>{{ user.get_role_display }}</span></span>
+        {% icon "chevron" "chev" %}
+      </summary>
+      <div class="popover" role="menu">
+        <div class="pop-head"><strong>{{ user.get_username }}</strong><span>{{ user.get_role_display }}</span></div>
+        <a class="item" href="{% url 'core:notifications' %}" role="menuitem">{% icon "bell" %}Notifications</a>
+        <form method="post" action="{% url 'accounts:logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="item danger" role="menuitem" data-no-loading>{% icon "logout" %}Log out</button>
+        </form>
+      </div>
+    </details>
+  </div>
+</header>

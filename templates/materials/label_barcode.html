@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Bundle label{% endblock %}
+{% block content %}
+  <h1>Bundle barcode label</h1>
+  <div class="card" style="max-width:640px;border:3px solid #111">
+    <p style="font-size:28px"><strong>{{ intake.lot_number }}</strong> &middot; heat {{ intake.heat_number }}</p>
+    <p>{{ intake.supplier.name }} &middot; grade {{ intake.grade.code }} &middot; {{ intake.quantity }} {{ intake.get_unit_display }}</p>
+    <p><strong>Barcode (signed)</strong></p>
+    <textarea readonly rows="3" style="width:100%">{{ intake.barcode }}</textarea>
+  </div>
+  <p><a href="{% url 'materials:detail' intake.pk %}">&larr; {{ intake.lot_number }}</a></p>
+{% endblock %}

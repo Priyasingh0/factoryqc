@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Start inspection{% endblock %}
+{% block header %}
+{% url 'inspections:list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Inspections" url=crumb_url current="Start" %}
+<div class="page-head"><div class="titles"><h1>Start inspection</h1>
+<p>Scan the QR plate on the machine or workstation, then the barcode printed on the job traveler. Jobs cannot be searched or picked from a list.</p></div></div>
+{% endblock %}
+{% block content %}
+  <div class="split">
+  <form method="post" class="section">
+    {% csrf_token %}
+    <header>{% icon "inspect" %}<h2>Scan to open the checklist</h2></header>
+    <div class="body">
+      {% if form.non_field_errors %}<div class="alert alert-danger" role="alert">{% icon "alert" %}<div>{% for e in form.non_field_errors %}<strong>{{ e }}</strong>{% endfor %}</div></div>{% endif %}
+      <div class="scan-steps">
+        <div class="scan-step"><div class="field {% if form.checklist_type.errors %}has-error{% endif %}"><label for="{{ form.checklist_type.id_for_label }}">{{ form.checklist_type.label }}<span class="req">*</span></label>{{ form.checklist_type }}{% for e in form.checklist_type.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div></div>
+        <div class="scan-step"><div class="field {% if form.machine_qr.errors %}has-error{% endif %}"><label for="{{ form.machine_qr.id_for_label }}">{{ form.machine_qr.label }}<span class="req">*</span></label>{{ form.machine_qr }}<div class="help">Scan the QR plate on the machine or workstation.</div>{% for e in form.machine_qr.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div></div>
+        <div class="scan-step"><div class="field {% if form.traveler_code.errors %}has-error{% endif %}"><label for="{{ form.traveler_code.id_for_label }}">{{ form.traveler_code.label }}<span class="req">*</span></label>{{ form.traveler_code }}<div class="help">Scan the barcode printed on the job traveler.</div>{% for e in form.traveler_code.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div></div>
+      </div>
+      <div class="form-actions" style="margin-top:1.5rem"><button type="submit" class="btn-lg">Open checklist</button><a class="btn btn-ghost btn-lg" href="{% url 'inspections:list' %}">Cancel</a></div>
+    </div>
+  </form>
+  <aside>
+    <div class="panel"><header><h2>How an inspection runs</h2></header>
+      <div class="body"><ol class="how">
+        <li><span><b>Scan the station and the job</b>Jobs cannot be searched or picked from a list.</span></li>
+        <li><span><b>Record each reading</b>Enter the value and the gauge serial. Pass or fail is worked out by the system.</span></li>
+        <li><span><b>Attach defect photos</b>Required for every out-of-tolerance reading.</span></li>
+        <li><span><b>Submit for approval</b>A supervisor reviews the record and decides.</span></li>
+      </ol></div></div>
+  </aside>
+  </div>
+{% endblock %}

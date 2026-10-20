@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Gate pass {{ document.number }}{% endblock %}
+{% block content %}
+  <h1>Dispatch Gate Pass {{ document.number }}</h1>
+  {% include "dispatch/_doc_head.html" %}
+  <p>{{ manifest.batch_size }} parts cleared for dispatch. Issued {{ document.issued_at|date:"d M Y H:i" }} by {{ document.issued_by.get_username }}.</p>
+  {% if decision %}<p>Final PDI {{ decision.get_decision_display|lower }} by {{ decision.decided_by.get_username }} on {{ decision.decided_at|date:"d M Y H:i" }}.</p>{% endif %}
+  <p>{% for i in items %}{{ i.serial.serial_number }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+  <p><a href="{% url 'dispatch:manifest' manifest.pk %}">&larr; Manifest</a></p>
+{% endblock %}

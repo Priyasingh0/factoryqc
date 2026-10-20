@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Issue material {{ wo.number }}{% endblock %}
+{% block header %}
+{% url 'production:work_order_detail' wo.pk as crumb_url %}{% include "partials/_crumbs.html" with parent=wo.number url=crumb_url current="Issue material" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Material issue</div><h1>Issue raw material to {{ wo.number }}</h1>
+<p>Heat number required: <strong>{{ wo.heat_number|default:"(none entered)" }}</strong>. Only cleared lots are offered; quarantined or rejected stock can never be issued.</p></div></div>
+{% endblock %}
+{% block content %}
+  <form method="post" class="section form-narrow" style="max-width:720px">{% csrf_token %}
+    <header>{% icon "material" %}<h2>Select the lot</h2></header>
+    <div class="body">
+      {% if form.non_field_errors %}<div class="alert alert-danger">{% icon "alert" %}<div>{% for e in form.non_field_errors %}<strong>{{ e }}</strong>{% endfor %}</div></div>{% endif %}
+      <div class="field"><label for="{{ form.intake.id_for_label }}">{{ form.intake.label }}</label>{{ form.intake }}{% for e in form.intake.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+      <div class="field"><label for="{{ form.lot_barcode.id_for_label }}">{{ form.lot_barcode.label }}</label>{{ form.lot_barcode }}{% for e in form.lot_barcode.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+      <div class="field {% if form.quantity.errors %}has-error{% endif %}"><label for="{{ form.quantity.id_for_label }}">{{ form.quantity.label }}<span class="req">*</span></label>{{ form.quantity }}{% for e in form.quantity.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+      <div class="form-actions"><button type="submit" class="btn-lg">Issue material</button><a class="btn btn-ghost btn-lg" href="{% url 'production:work_order_detail' wo.pk %}">Cancel</a></div>
+    </div>
+  </form>
+{% endblock %}

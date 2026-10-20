@@ -1,0 +1,4 @@
+<p>Work order <strong>{{ manifest.traveler.work_order.number }}</strong> &middot; Part <strong>{{ manifest.traveler.work_order.part.part_number }}</strong>
+   &middot; Customer PO <strong>{{ manifest.customer_po }}</strong> &middot; Vehicle <strong>{{ manifest.vehicle_number }}</strong>
+   &middot; Heat no. {{ manifest.traveler.work_order.heat_number|default:"&ndash;" }}</p>
+{% if concession %}<p class="error" style="font-size:20px">RELEASED ON CONCESSION &ndash; {{ concession.get_reason_code_display }}.</p>{% endif %}

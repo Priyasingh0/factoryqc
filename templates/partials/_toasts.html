@@ -1,0 +1,14 @@
+{% load ui %}
+{% if messages %}
+<div class="toasts" role="status" aria-live="polite">
+  {% for message in messages %}
+    {% with level=message.tags|message_level %}
+    <div class="toast {{ level }}">
+      {% if level == "success" %}{% icon "check" %}{% elif level == "error" %}{% icon "x" %}{% elif level == "warning" %}{% icon "alert" %}{% else %}{% icon "info" %}{% endif %}
+      <div class="msg">{{ message }}</div>
+      <button type="button" aria-label="Dismiss">&times;</button>
+    </div>
+    {% endwith %}
+  {% endfor %}
+</div>
+{% endif %}

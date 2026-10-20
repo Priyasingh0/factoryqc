@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Parts{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Parts" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Plant</div><h1>Part numbers</h1><p>Part master with the approved CNC programs for each part.</p></div></div>
+{% endblock %}
+{% block content %}
+  <div class="filter-bar"><input type="search" class="search" placeholder="Search part number or name…" aria-label="Search parts" data-table-filter="tbl-part-list"></div>
+  <div class="table-wrap sticky"><table id="tbl-part-list">
+    <thead><tr><th>Part number</th><th>Name</th><th>CNC programs</th></tr></thead>
+    <tbody>
+      {% for part in object_list %}
+        <tr>
+          <td class="mono"><strong>{{ part.part_number }}</strong></td>
+          <td>{{ part.name }}</td>
+          <td>
+            {% for p in part.programs.all %}<span class="badge {% if p.is_approved %}b-success{% else %}b-danger{% endif %}">{{ p }}</span>{% if not p.is_approved %} <small class="error">(not approved)</small>{% endif %} {% empty %}&ndash;{% endfor %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3">{% include "partials/_empty_card.html" with icon="part" title="No parts registered yet" text="No parts registered yet." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

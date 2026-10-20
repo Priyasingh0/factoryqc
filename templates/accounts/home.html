@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Dashboard{% endblock %}
+{% block header %}
+<div class="page-head">
+  <div class="titles">
+    <h1>Welcome, {{ user.get_full_name|default:user.get_username }}</h1>
+    <p>Employee ID <strong>{{ user.employee_id }}</strong> &middot; {{ user.get_role_display }}</p>
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+  {% if dash.kpis %}
+  <div class="grid cols-4" style="margin-bottom:1rem">
+    {% for k in dash.kpis %}
+      <a class="stat {{ k.tone }}" href="{{ k.url }}"><div class="label">{{ k.label }}</div><div class="value">{{ k.value }}</div><div class="sub">{{ k.sub }}</div></a>
+    {% endfor %}
+  </div>
+  {% else %}
+    <div class="card">{% include "partials/_empty.html" with message="Your role has no operational modules yet." %}</div>
+  {% endif %}
+
+  <div class="split">
+    <div>
+      {% if dash.panels.dispatch %}
+      <div class="card">
+        <div class="card-head"><h2>Dispatch readiness</h2><a href="{% url 'dispatch:board' %}">Open board &rarr;</a></div>
+        {% for d in dash.panels.dispatch %}
+          <div class="bar-row"><span>{{ d.label }}</span>
+            <div class="progress{% if d.key == 'BLOCKED' or d.key == 'QUALITY_HOLD' %} danger{% elif d.key != 'READY' %} warn{% endif %}"><span style="width:{{ d.value|pct:dash.panels.dispatch_total }}%"></span></div>
+            <strong>{{ d.value }}</strong></div>
+        {% endfor %}
+        {% if not dash.panels.dispatch_total %}<p class="muted">No travelers yet.</p>{% endif %}
+      </div>
+      {% endif %}
+      {% if dash.panels.production %}
+      <div class="card">
+        <div class="card-head"><h2>Production status</h2><a href="{% url 'production:traveler_list' %}">Travelers &rarr;</a></div>
+        <div class="legend">{% for t in dash.panels.production.travelers %}<span class="badge {{ t.key|status_class }}">{{ t.label }}: {{ t.value }}</span>{% empty %}<span class="muted">No travelers yet.</span>{% endfor %}</div>
+        {% if dash.panels.production.ops_total %}
+          <p class="muted">Operations on active travelers: {{ dash.panels.production.ops_done }} of {{ dash.panels.production.ops_total }} completed</p>
+          <div class="progress"><span style="width:{{ dash.panels.production.ops_done|pct:dash.panels.production.ops_total }}%"></span></div>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% if dash.panels.materials %}
+      <div class="card">
+        <div class="card-head"><h2>Raw material status</h2><a href="{% url 'materials:list' %}">Intake &rarr;</a></div>
+        <div class="legend">{% for m in dash.panels.materials %}<span class="badge {{ m.key|status_class }}">{{ m.label }}: {{ m.value }}</span>{% endfor %}</div>
+      </div>
+      {% endif %}
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-head"><h2>Important alerts</h2></div>
+        <ul class="alert-list">
+          {% for level, text, url in dash.alerts %}
+            <li><span class="badge {% if level == 'danger' %}b-danger{% else %}b-warn{% endif %}">{% if level == 'danger' %}Critical{% else %}Attention{% endif %}</span><a href="{{ url }}">{{ text }}</a></li>
+          {% empty %}<li class="muted">{% icon "check" %} No open alerts.</li>{% endfor %}
+        </ul>
+      </div>
+      {% if dash.activity %}
+      <div class="card">
+        <div class="card-head"><h2>Recent activity</h2><a href="{% url 'core:audit_log' %}">Audit log &rarr;</a></div>
+        <ul class="activity">
+          {% for e in dash.activity %}
+            <li><span><strong>{{ e.user_label|default:"system" }}</strong> {{ e.get_action_display|lower }} {{ e.model_name }} {{ e.object_id }}</span><span class="when">{{ e.timestamp|timesince }} ago</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

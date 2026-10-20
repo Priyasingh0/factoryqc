@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Dispatch check {{ traveler.work_order.number }}{% endblock %}
+{% block header %}
+{% url 'dispatch:board' as crumb_url %}{% include "partials/_crumbs.html" with parent="Dispatch" url=crumb_url current=traveler.work_order.number %}
+<div class="page-head">
+  <div class="titles"><h1>Pre-dispatch check &ndash; {{ traveler.work_order.number }}{% if traveler.is_rework %} (rework){% endif %}</h1>
+    <p>Every requirement must be green before the lot can be packed, documented and shipped.</p></div>
+  <div class="actions">{% if perms.production.view_jobtraveler %}<a class="btn btn-ghost" href="{% url 'production:traveler_detail' traveler.pk %}">{% icon "traveler" %}Job traveler</a>{% endif %}</div>
+</div>
+{% endblock %}
+{% block content %}
+  <div class="clear-hero {% if result.cleared %}go{% else %}stop{% endif %}" role="status">
+    <div class="ch-ico">{% if result.cleared %}{% icon "check" %}{% else %}{% icon "lock" %}{% endif %}</div>
+    <div>
+      {% if result.cleared %}
+        <div class="ch-state">Shipping interlock GREEN</div>
+        <p class="ch-sub">Clear to ship. This lot may be packed and dispatched.</p>
+      {% else %}
+        <div class="ch-state">SHIPPING INTERLOCK</div>
+        <p class="ch-sub">Blocked. Dispatch documents are locked. Fix every red requirement below to release the lot.</p>
+      {% endif %}
+    </div>
+    <dl class="ch-facts">
+      <div><dt>Work order</dt><dd>{{ traveler.work_order.number }}</dd></div>
+      <div><dt>Part</dt><dd>{{ traveler.work_order.part.part_number }}</dd></div>
+      <div><dt>Quantity</dt><dd>{{ traveler.quantity }}</dd></div>
+      <div><dt>Heat no.</dt><dd>{{ traveler.work_order.heat_number|default:"&ndash;" }}</dd></div>
+    </dl>
+  </div>
+  {% if result.cleared and pdi.decision.decision == "CONCESSION" %}<div class="alert alert-warn">{% icon "alert" %}<div><strong>Released on concession</strong> &ndash; this is recorded on every shipping document.</div></div>{% endif %}
+
+  <div class="split">
+    <div>
+      <section class="section">
+        <header>{% icon "shield" %}<h2>Mandatory clearance checks</h2><div class="right">{{ result.checks|length }} gates</div></header>
+        <div class="gate-flow">
+          {% for c in result.checks %}
+            <div class="gate-row {% if c.ok %}ok{% else %}no{% endif %}">
+              <div class="gnode">{% if c.ok %}{% icon "check" %}{% else %}{{ forloop.counter }}{% endif %}</div>
+              <div><h3>{{ c.title }}</h3>
+                {% if c.ok %}<span class="muted">Requirement met.</span>{% else %}<ul>{% for p in c.problems %}<li>{{ p }}</li>{% endfor %}</ul>{% endif %}</div>
+              <div class="gs">{% if c.ok %}<span class="badge b-success">Green</span>{% else %}<span class="badge b-danger">Red</span>{% endif %}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      {% if form %}
+        <form method="post" action="{% url 'dispatch:manifest_new' traveler.pk %}" class="section">{% csrf_token %}
+          <header>{% icon "dispatch" %}<h2>New shipment manifest</h2></header>
+          <div class="body">
+            <div class="grid cols-2">
+              <div class="field"><label for="{{ form.customer_po.id_for_label }}">{{ form.customer_po.label }}</label>{{ form.customer_po }}{% for e in form.customer_po.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+              <div class="field"><label for="{{ form.vehicle_number.id_for_label }}">{{ form.vehicle_number.label }}<span class="req">*</span></label>{{ form.vehicle_number }}{% for e in form.vehicle_number.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+            </div>
+            <div class="field"><label>{{ form.serials.label }}</label><div class="help">{{ form.serials.help_text }}</div>{{ form.serials }}{% for e in form.serials.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+            <button type="submit" class="btn-lg">Create manifest</button>
+          </div>
+        </form>
+      {% endif %}
+    </div>
+
+    <aside>
+      <div class="panel">
+        <header>{% icon "package" %}<h2>Shipment status</h2></header>
+        <div class="body">
+          {% with shipped=manifests|sum_attr:"batch_size" total=traveler.serials.count %}
+            <div class="meter"><strong>{{ shipped }}</strong><span>of {{ total }} parts on manifests</span></div>
+            <div class="progress"><span style="width:{{ shipped|pct:total }}%"></span></div>
+          {% endwith %}
+        </div>
+      </div>
+      <div class="panel">
+        <header>{% icon "traveler" %}<h2>Manifests</h2></header>
+        <div class="table-wrap" style="border:0;box-shadow:none;margin:0;border-radius:0"><table>
+          <thead><tr><th>#</th><th>Vehicle</th><th class="num">Parts</th><th>Gate pass</th></tr></thead>
+          <tbody>
+            {% for m in manifests %}
+              <tr><td><a class="row-link" href="{% url 'dispatch:manifest' m.pk %}">#{{ m.pk }}</a><span class="sub">{{ m.get_status_display }}</span></td><td>{{ m.vehicle_number }}<span class="sub">{{ m.customer_po }}</span></td><td class="num">{{ m.batch_size }}</td><td>{% if m.gate_pass %}<span class="badge b-success">Issued</span>{% else %}<span class="badge b-neutral">Not issued</span>{% endif %}</td></tr>
+            {% empty %}
+              <tr><td colspan="4" class="empty-cell">No manifests yet.{% if result.cleared %} Create one to start packing.{% endif %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table></div>
+      </div>
+    </aside>
+  </div>
+{% endblock %}

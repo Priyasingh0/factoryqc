@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Traceability{% endblock %}
+{% block header %}
+{% url 'production:traveler_list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Travelers" url=crumb_url current="Traceability" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Production</div><h1>Traceability</h1>
+<p>Forward recall by heat number and backward birth certificate by part serial.</p></div></div>
+{% endblock %}
+{% block content %}
+  <form method="get" class="section" style="max-width:760px">
+    <header>{% icon "shield" %}<h2>Search</h2></header>
+    <div class="body"><div class="grid cols-2">
+      <div class="field"><label for="{{ form.kind.id_for_label }}">{{ form.kind.label }}</label>{{ form.kind }}</div>
+      <div class="field"><label for="{{ form.q.id_for_label }}">{{ form.q.label }}</label>{{ form.q }}</div>
+    </div><button type="submit" class="btn-lg">Search</button></div>
+  </form>
+  {% if searched %}
+    {% if work_orders is not None and not birth %}
+      <section class="section"><header>{% icon "material" %}<h2>Supplier lots with this heat number</h2></header>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Lot</th><th>Supplier</th><th>PO</th><th>Quantity</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for lot in lots %}
+            <tr>
+              <td>{% if perms.materials.view_rawmaterialintake %}<a href="{% url 'materials:detail' lot.pk %}">{{ lot.lot_number }}</a>{% else %}{{ lot.lot_number }}{% endif %}</td>
+              <td>{{ lot.supplier.name }}</td><td>{{ lot.po_number }}</td><td>{{ lot.quantity }} {{ lot.get_unit_display }}</td>
+              <td>{% badge lot.status lot.get_status_display %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">No intake record for that heat number.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div></section>
+      <section class="section"><header>{% icon "workorder" %}<h2>Work orders made from this heat lot</h2></header>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Work order</th><th>Part</th><th>Qty</th><th>Serials</th></tr></thead>
+        <tbody>
+          {% for wo in work_orders %}
+            <tr>
+              <td>{{ wo.number }}</td><td>{{ wo.part.part_number }}</td><td>{{ wo.quantity }}</td>
+              <td>{% for t in wo.travelers.all %}{% for s in t.serials.all %}{{ s.serial_number }}{% if not forloop.last %}, {% endif %}{% empty %}no serials issued{% endfor %}{% endfor %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4">No work orders found for that heat number.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div></section>
+    {% elif birth %}
+      <div class="hero ok"><div class="ico">{% icon "shield" %}</div><div class="grow"><h2>Birth certificate &ndash; {{ birth.serial.serial_number }}</h2>
+      <p>Part {{ birth.work_order.part.part_number }} &middot; Work order {{ birth.work_order.number }}
+         &middot; Heat no. <strong>{{ birth.work_order.heat_number|default:"&ndash;" }}</strong>
+         &middot; Customer PO {{ birth.work_order.customer_po|default:"&ndash;" }}</p></div></div>
+      <section class="section"><header>{% icon "flow" %}<h2>Operations</h2></header><div class="table-wrap"><table>
+        <thead><tr><th>Op</th><th>Machine</th><th>Operator</th><th>Shift</th><th>In</th><th>Out</th><th>Signed off by</th></tr></thead>
+        <tbody>
+          {% for op in birth.operations %}
+            <tr>
+              <td>{{ op.routing_operation }}</td><td>{{ op.machine.code|default:"&ndash;" }}</td>
+              <td>{{ op.operator.get_username|default:"&ndash;" }}</td><td>{{ op.get_shift_display|default:"&ndash;" }}</td>
+              <td>{{ op.clock_in|date:"d M Y H:i"|default:"&ndash;" }}</td><td>{{ op.clock_out|date:"d M Y H:i"|default:"&ndash;" }}</td>
+              <td>{{ op.signed_off_by.get_username|default:"&ndash;" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div></section>
+      {% for lot in birth.lots %}
+        <div class="alert alert-info">{% icon "material" %}<div>Raw material: lot <strong>{{ lot.lot_number }}</strong> &middot; {{ lot.supplier.name }} &middot; grade {{ lot.grade.code }}
+           &middot; MTC verified {{ lot.mtc_verified_at|date:"d M Y"|default:"&ndash;" }}</div></div>
+      {% endfor %}
+      <p><small>PDI measurements and gauge calibration IDs are added to this report once inspections are built.</small></p>
+    {% else %}
+      <div class="section"><div class="body">{% include "partials/_empty_card.html" with icon="part" title="No part found" text="No part found with that serial number." %}</div></div>
+    {% endif %}
+  {% endif %}
+{% endblock %}

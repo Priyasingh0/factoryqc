@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Dispatch{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Dispatch" %}
+<div class="page-head"><div class="titles"><h1>Dispatch clearance</h1>
+<p>A lot can be packed and shipped only when every operation is signed off, every hold is cleared, there is no quality hold and the final PDI is approved.</p></div></div>
+{% endblock %}
+{% block content %}
+  {% if not rows %}
+    <div class="section"><div class="body">{% include "partials/_empty_card.html" with icon="dispatch" title="No job travelers yet" text="Lots appear here as soon as a work order is released and a traveler is generated." %}</div></div>
+  {% else %}
+    <div class="rail-seg" data-seg-filter="tbl-lots" role="group" aria-label="Filter lots by clearance state">
+      <button type="button" data-seg="all" class="seg-all" aria-pressed="true"><span class="n">{{ rows|length }}</span><span class="l">All lots</span></button>
+      <button type="button" data-seg="READY" class="seg-ready" aria-pressed="false"><span class="n">{{ counts.READY }}</span><span class="l">Ready to ship</span></button>
+      <button type="button" data-seg="PENDING_FINAL_PDI" class="seg-pdi" aria-pressed="false"><span class="n">{{ counts.PENDING_FINAL_PDI }}</span><span class="l">Pending final PDI</span></button>
+      <button type="button" data-seg="QUALITY_HOLD" class="seg-qhold" aria-pressed="false"><span class="n">{{ counts.QUALITY_HOLD }}</span><span class="l">Quality hold</span></button>
+      <button type="button" data-seg="MATERIAL_HOLD" class="seg-mhold" aria-pressed="false"><span class="n">{{ counts.MATERIAL_HOLD }}</span><span class="l">Material hold</span></button>
+      <button type="button" data-seg="BLOCKED" class="seg-blocked" aria-pressed="false"><span class="n">{{ counts.BLOCKED }}</span><span class="l">Blocked</span></button>
+    </div>
+    <div class="filter-bar">
+      <input type="search" class="search" placeholder="Search work order or part&hellip;" aria-label="Search lots" data-table-filter="tbl-lots">
+    </div>
+    <div class="table-wrap sticky"><table id="tbl-lots" class="lots">
+      <thead><tr><th>Clearance</th><th>Lot</th><th>Gates</th><th>What is stopping it</th><th>Shipped</th><th class="actions"></th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+          <tr data-cat="{{ r.category }}">
+            <td><span class="lamp {% if r.category == 'READY' %}ready{% elif r.category == 'BLOCKED' %}blocked{% elif r.category == 'QUALITY_HOLD' %}qhold{% elif r.category == 'MATERIAL_HOLD' %}mhold{% else %}pdi{% endif %}">{{ r.category_label }}</span></td>
+            <td><a class="row-link" href="{% url 'dispatch:check' r.traveler.pk %}">{{ r.traveler.work_order.number }}{% if r.traveler.is_rework %} (rework){% endif %}</a><span class="sub">{{ r.traveler.work_order.part.part_number }} &times; {{ r.traveler.quantity }}</span></td>
+            <td><span class="gates" aria-label="Clearance gates">{% for c in r.clearance.checks %}<span class="gate {% if c.ok %}ok{% else %}no{% endif %}" title="{{ c.title }}"><i>{% if c.ok %}{% icon "check" %}{% else %}{% icon "x" %}{% endif %}</i>{{ c.code|gate_label }}</span>{% endfor %}</span></td>
+            <td>{% if r.clearance.cleared %}<span class="blocker ok">Cleared</span>{% else %}<span class="blocker">Locked &ndash; {{ r.first_problem }}</span>{% endif %}</td>
+            <td><div class="ship-prog"><div class="progress"><span style="width:{{ r.shipped|pct:r.total }}%"></span></div><small>{{ r.shipped }} of {{ r.total }} parts</small></div></td>
+            <td class="actions"><a class="btn btn-sm {% if r.category != 'READY' %}btn-ghost{% endif %}" href="{% url 'dispatch:check' r.traveler.pk %}">Open check</a></td>
+          </tr>
+        {% endfor %}
+        <tr data-seg-empty style="display:none"><td colspan="6" class="empty-cell">No lots in this state right now.</td></tr>
+      </tbody>
+    </table></div>
+  {% endif %}
+{% endblock %}

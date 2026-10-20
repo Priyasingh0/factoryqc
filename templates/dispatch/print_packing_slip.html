@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Packing slip {{ document.number }}{% endblock %}
+{% block content %}
+  <h1>Packing Slip {{ document.number }}</h1>
+  {% include "dispatch/_doc_head.html" %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Serial number</th></tr></thead>
+    <tbody>{% for i in items %}<tr><td>{{ forloop.counter }}</td><td>{{ i.serial.serial_number }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <p>Issued {{ document.issued_at|date:"d M Y H:i" }} by {{ document.issued_by.get_username }}.</p>
+  <p><a href="{% url 'dispatch:manifest' manifest.pk %}">&larr; Manifest</a></p>
+{% endblock %}

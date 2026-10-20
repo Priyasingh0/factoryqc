@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{{ intake.lot_number }}{% endblock %}
+{% block header %}
+{% url 'materials:list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Materials" url=crumb_url current=intake.lot_number %}
+<div class="page-head">
+  <div class="titles"><h1>{{ intake.lot_number }} &ndash; heat {{ intake.heat_number }} {% badge intake.status intake.get_status_display %}</h1>
+    <p>{{ intake.supplier.name }} &middot; grade {{ intake.grade.code }} &middot; received {{ intake.received_at|date:"d M Y" }}</p></div>
+  <div class="actions">
+    <a class="btn btn-ghost" href="{% url 'materials:mtc_file' intake.pk %}" target="_blank" rel="noopener">{% icon "file" %}Open the MTC file</a>
+    {% if label %}<a class="btn" href="{% url 'materials:label' intake.pk %}">{% icon "print" %}Print {% if label == "sample" %}sample tag{% else %}bundle barcode label{% endif %}</a>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+  {% if intake.status == "CLEARED" %}
+    <div class="hero ok"><div class="ico">{% icon "check" %}</div><div class="grow"><h2>Cleared for production</h2><p>This lot can be issued to work orders.</p></div></div>
+  {% elif intake.status == "SUPPLIER_QUARANTINE" %}
+    <div class="hero bad"><div class="ico">{% icon "lock" %}</div><div class="grow"><h2>SUPPLIER QUARANTINE &ndash; cannot be issued to production</h2><p>The lot is held until the SNCR is closed.</p></div></div>
+  {% else %}
+    <div class="hero info"><div class="ico">{% icon "info" %}</div><div class="grow"><h2>{{ intake.get_status_display }}</h2><p>Clearance needs a verified MTC{% if intake.lab_required %} and a passing lab result{% endif %}.</p></div></div>
+  {% endif %}
+
+  <div class="summary">
+    <div class="sum"><div class="k">Intake status</div><div class="v">{% badge intake.status intake.get_status_display %}</div></div>
+    <div class="sum {% if intake.mtc_verified_by %}accent{% else %}warn{% endif %}"><div class="k">MTC</div><div class="v">{% if intake.mtc_verified_by %}Verified{% else %}Awaiting review{% endif %}</div>{% if intake.mtc_verified_by %}<div class="s">{{ intake.mtc_verified_by.get_username }} &middot; {{ intake.mtc_verified_at|date:"d M Y H:i" }}</div>{% endif %}</div>
+    <div class="sum {% if lab_result %}{% if lab_result.passed %}accent{% else %}bad{% endif %}{% elif intake.lab_required %}warn{% endif %}"><div class="k">Lab</div><div class="v">{% if lab_result %}{% if lab_result.passed %}Pass{% else %}Fail{% endif %}{% elif intake.lab_required %}Pending{% else %}Not required{% endif %}</div>{% if lab_result %}<div class="s">{{ lab_result.report_reference }}</div>{% endif %}</div>
+    <div class="sum {% if intake.status == 'SUPPLIER_QUARANTINE' %}bad{% elif sncr %}warn{% else %}accent{% endif %}"><div class="k">Quarantine</div><div class="v">{% if intake.status == "SUPPLIER_QUARANTINE" %}Quarantined{% elif sncr %}SNCR {{ sncr.get_status_display }}{% else %}None{% endif %}</div></div>
+  </div>
+
+  {% if sncr %}
+    <section class="section danger">
+      <header>{% icon "alert" %}<h2>{{ sncr.number }} &ndash; {{ sncr.get_status_display }}</h2></header>
+      <div class="body">
+        <p>{{ sncr.get_reason_code_display }}. {{ sncr.details }}<br>
+           <span class="muted">Raised by {{ sncr.raised_by.get_username }} on {{ sncr.raised_at|date:"d M Y H:i" }}.
+           {% if sncr.status == "CLOSED" %}Closed: {{ sncr.get_resolution_display }} ({{ sncr.resolution_reference }}) by {{ sncr.closed_by.get_username }}.{% endif %}</span></p>
+        {% if can_resolve %}
+          <form method="post" action="{% url 'materials:resolve' intake.pk %}">{% csrf_token %}
+            <div class="row"><div style="min-width:220px">{{ resolve_form.resolution }}</div><div style="min-width:220px">{{ resolve_form.reference }}</div>
+            <button type="submit" data-confirm="Close {{ sncr.number }} with this resolution?">Close SNCR</button></div>
+          </form>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+
+  <div class="split">
+    <div>
+      {% if properties %}
+        <section class="section">
+          <header>{% icon "checklist" %}<h2>MTC values vs {{ intake.grade.code }} specification</h2></header>
+          {% if can_review %}
+            <form method="post" action="{% url 'materials:review' intake.pk %}">{% csrf_token %}
+              <div class="table-wrap"><table>
+                <thead><tr><th>Property</th><th>Specification</th><th>Value on the MTC</th></tr></thead>
+                <tbody>
+                  {% for p in properties %}
+                    <tr><td><strong>{{ p.name }}</strong><span class="sub">{{ p.get_kind_display }}</span></td><td class="mono">{{ p.spec_display }}</td>
+                        <td><input name="prop_{{ p.pk }}" inputmode="decimal" required style="max-width:160px" aria-label="Value of {{ p.name }} on the MTC"></td></tr>
+                  {% endfor %}
+                </tbody>
+              </table></div>
+              <div class="body" style="border-top:1px solid var(--line)"><button type="submit" class="btn-lg">Verify MTC</button></div>
+            </form>
+          {% else %}
+            <div class="table-wrap"><table>
+              <thead><tr><th>Property</th><th>Specification</th><th class="num">Value</th><th>Result</th></tr></thead>
+              <tbody>
+                {% for r in readings %}
+                  <tr class="{% if not r.is_within_spec %}row-danger{% endif %}"><td><strong>{{ r.grade_property.name }}</strong></td><td class="mono">{{ r.spec_display }}</td><td class="num mono">{{ r.value }}</td>
+                      <td>{% if r.is_within_spec %}<span class="badge b-success">In spec</span>{% else %}<span class="badge b-danger">Out of spec</span>{% endif %}</td></tr>
+                {% empty %}
+                  <tr><td colspan="4" class="empty-cell">The MTC has not been reviewed yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table></div>
+          {% endif %}
+        </section>
+      {% elif can_review %}
+        <form method="post" action="{% url 'materials:review' intake.pk %}" class="section">{% csrf_token %}
+          <header>{% icon "checklist" %}<h2>MTC review</h2></header>
+          <div class="body"><p>This grade has no specification limits to check.</p><button type="submit">Confirm MTC verified</button></div>
+        </form>
+      {% endif %}
+
+      {% if lab_result %}
+        <section class="section {% if not lab_result.passed %}danger{% endif %}"><header>{% icon "tool" %}<h2>Lab result</h2><div class="right">{% if lab_result.passed %}<span class="badge b-success">Pass</span>{% else %}<span class="badge b-danger">Fail</span>{% endif %}</div></header>
+          <div class="body"><dl class="meta-grid"><div><dt>Report reference</dt><dd class="mono">{{ lab_result.report_reference }}</dd></div><div><dt>Remarks</dt><dd>{{ lab_result.remarks|default:"&ndash;" }}</dd></div></dl></div></section>
+      {% endif %}
+
+      <section class="section">
+        <header>{% icon "workorder" %}<h2>Issued to work orders</h2></header>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Work order</th><th class="num">Quantity</th><th>Issued by</th><th>When</th></tr></thead>
+          <tbody>
+            {% for i in issues %}
+              <tr><td>{% if perms.production.view_workorder %}<a class="row-link" href="{% url 'production:work_order_detail' i.work_order.pk %}">{{ i.work_order.number }}</a>{% else %}{{ i.work_order.number }}{% endif %}</td>
+                  <td class="num">{{ i.quantity }}</td><td>{{ i.issued_by.get_username }}</td><td>{{ i.issued_at|date:"d M H:i" }}</td></tr>
+            {% empty %}
+              <tr><td colspan="4" class="empty-cell">Not issued to any work order yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table></div>
+      </section>
+    </div>
+
+    <aside>
+      <div class="panel">
+        <header>{% icon "material" %}<h2>Lot details</h2></header>
+        <div class="body">
+          <dl class="meta-grid" style="grid-template-columns:1fr 1fr">
+            <div><dt>Supplier</dt><dd>{{ intake.supplier.name }}</dd></div><div><dt>Purchase order</dt><dd>{{ intake.po_number }}</dd></div>
+            <div><dt>Material grade</dt><dd>{{ intake.grade.code }}</dd></div><div><dt>Heat number</dt><dd class="mono">{{ intake.heat_number }}</dd></div>
+            <div style="grid-column:1/-1"><dt>Received</dt><dd>{{ intake.received_at|date:"d M Y H:i" }} by {{ intake.received_by.get_username }}</dd></div>
+          </dl>
+          <hr>
+          <div class="meter"><strong>{{ intake.remaining_quantity|floatformat:"-3" }}</strong><span>{{ intake.get_unit_display }} remaining of {{ intake.quantity|floatformat:"-3" }}</span></div>
+          <div class="progress" style="margin-bottom:.4rem"><span style="width:{{ intake.issued_quantity|pct:intake.quantity }}%"></span></div>
+          <small class="muted">{{ intake.issued_quantity|floatformat:"-3" }} {{ intake.get_unit_display }} issued to work orders</small>
+        </div>
+      </div>
+
+      {% if can_lab %}
+        <form method="post" action="{% url 'materials:lab' intake.pk %}" class="panel">{% csrf_token %}
+          <header>{% icon "tool" %}<h2>Lab test result</h2></header>
+          <div class="body">
+            <div class="field"><label>{{ lab_form.result.label }}</label>{{ lab_form.result }}</div>
+            <div class="field"><label for="{{ lab_form.report_reference.id_for_label }}">{{ lab_form.report_reference.label }}</label>{{ lab_form.report_reference }}</div>
+            <div class="field"><label for="{{ lab_form.remarks.id_for_label }}">{{ lab_form.remarks.label }}</label>{{ lab_form.remarks }}</div>
+            <button type="submit" class="btn-block">Record result</button>
+          </div>
+        </form>
+      {% endif %}
+
+      {% if can_reject or can_recall %}
+        <div class="panel danger-zone">
+          <header>{% icon "alert" %}<h2>Danger zone</h2></header>
+          <div class="body">
+            {% if can_reject %}
+              <form method="post" action="{% url 'materials:reject' intake.pk %}">{% csrf_token %}
+                <h3 style="margin-bottom:.6rem">Reject intake</h3>
+                <div class="field"><label>Reason</label>{{ reject_form.reason_code }}</div>
+                <div class="field"><label for="{{ reject_form.details.id_for_label }}">{{ reject_form.details.label }}</label>{{ reject_form.details }}</div>
+                <button type="submit" class="btn-danger btn-block" data-confirm="Reject this intake and place it in supplier quarantine?">Reject intake</button>
+              </form>
+            {% endif %}
+            {% if can_recall %}
+              <form method="post" action="{% url 'materials:recall' intake.pk %}">{% csrf_token %}
+                <h3 style="margin-bottom:.6rem">Quarantine this cleared lot</h3>
+                <div class="field"><label for="{{ recall_form.details.id_for_label }}">{{ recall_form.details.label }}</label>{{ recall_form.details }}</div>
+                <button type="submit" class="btn-danger btn-block" data-confirm="Quarantine this cleared lot? It can no longer be issued to production.">Quarantine lot</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    </aside>
+  </div>
+{% endblock %}

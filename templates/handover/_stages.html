@@ -1,0 +1,12 @@
+{% load ui %}
+<ol class="stepper">
+{% for stage in flow.stages %}
+  <li class="step {% if stage.ok %}done{% elif stage == flow.current %}current blocked{% endif %}">
+    <span class="node">{% if stage.ok %}{% icon "check" %}{% elif stage == flow.current %}{% icon "alert" %}{% else %}{{ forloop.counter }}{% endif %}</span>
+    <div>
+      <h3>{{ stage.title }} {% if stage.ok %}<span class="badge b-success">Done</span>{% elif stage == flow.current %}<span class="badge b-danger">Blocked</span>{% else %}<span class="badge b-neutral">Waiting</span>{% endif %}</h3>
+      {% for problem in stage.problems %}<div class="error">{{ problem }}</div>{% endfor %}
+    </div>
+  </li>
+{% endfor %}
+</ol>

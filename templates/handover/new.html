@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Handover {{ machine.code }}{% endblock %}
+{% block header %}
+{% url 'handover:board' as crumb_url %}{% include "partials/_crumbs.html" with parent="Handover" url=crumb_url current=machine.code %}
+<div class="page-head"><div class="titles"><h1>Shift handover: {{ machine.code }}</h1>
+<p>Confirm what the system recorded, then describe the machine for the next shift. A different supervisor must countersign before the next shift can start work.</p></div></div>
+{% endblock %}
+{% block content %}
+  <form method="post" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger" role="alert">{% icon "alert" %}<div>{% for e in form.non_field_errors %}<strong>{{ e }}</strong>{% endfor %}</div></div>{% endif %}
+  <div class="split">
+    <div>
+      <section class="section">
+        <header>{% icon "pulse" %}<h2>Shift output</h2></header>
+        <div class="body">
+          <div class="field {% if form.scrap_count.errors %}has-error{% endif %}" style="max-width:260px"><label for="{{ form.scrap_count.id_for_label }}">{{ form.scrap_count.label }}<span class="req">*</span></label>{{ form.scrap_count }}<div class="help">Parts scrapped on this machine during your shift.</div>{% for e in form.scrap_count.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <header>{% icon "tool" %}<h2>Tooling</h2></header>
+        <div class="body">
+          <div class="field {% if form.tool_wear.errors %}has-error{% endif %}"><label>{{ form.tool_wear.label }}<span class="req">*</span></label>
+            <div class="opts three" role="radiogroup">{% for radio in form.tool_wear %}<label class="opt {% if radio.data.value == 'OK' %}ok{% elif radio.data.value == 'WATCH' %}warn{% else %}bad{% endif %}" for="{{ radio.id_for_label }}">{{ radio.tag }}<span class="dot"></span><span>{{ radio.choice_label }}</span></label>{% endfor %}</div>
+            {% for e in form.tool_wear.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+          <div class="field" style="margin-bottom:0"><label for="{{ form.tool_wear_notes.id_for_label }}">{{ form.tool_wear_notes.label }}</label>{{ form.tool_wear_notes }}</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <header>{% icon "machine" %}<h2>Machine health</h2></header>
+        <div class="body">
+          <div class="field {% if form.machine_health.errors %}has-error{% endif %}"><label>{{ form.machine_health.label }}<span class="req">*</span></label>
+            <div class="opts three" role="radiogroup">{% for radio in form.machine_health %}<label class="opt {% if radio.data.value == 'GOOD' %}ok{% elif radio.data.value == 'DEGRADED' %}warn{% else %}bad{% endif %}" for="{{ radio.id_for_label }}">{{ radio.tag }}<span class="dot"></span><span>{{ radio.choice_label }}</span></label>{% endfor %}</div>
+            {% for e in form.machine_health.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+          <div class="field" style="margin-bottom:0"><label for="{{ form.machine_health_notes.id_for_label }}">{{ form.machine_health_notes.label }}</label>{{ form.machine_health_notes }}</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <header>{% icon "workorder" %}<h2>Running job</h2></header>
+        <div class="body">
+          <div class="field" style="margin-bottom:0"><label for="{{ form.job_status_notes.id_for_label }}">{{ form.job_status_notes.label }}</label>{{ form.job_status_notes }}<div class="help">What the incoming operator needs to know to carry on without a gap.</div></div>
+        </div>
+      </section>
+
+      <div class="action-bar"><span class="muted" style="font-size:.86rem">{% icon "lock" %} Saved handovers cannot be edited. A different supervisor countersigns next.</span><button type="submit" class="btn-lg">Save handover</button></div>
+    </div>
+
+    <aside>
+      <div class="panel">
+        <header>{% icon "lock" %}<h2>Read from the system</h2></header>
+        <div class="body">
+          <p class="lock-note">{% icon "lock" %}These figures come from the records and cannot be edited.</p>
+          <div class="snap">
+            <div><div class="k">Parts this shift</div><div class="v">{{ snapshot.parts_produced }}</div></div>
+            <div class="{% if snapshot.open_quality_alerts %}bad{% endif %}"><div class="k">Quality alerts</div><div class="v">{{ snapshot.open_quality_alerts }}</div></div>
+            <div class="{% if snapshot.pending_pdi_reviews %}warn{% endif %}"><div class="k">Pending reviews</div><div class="v">{{ snapshot.pending_pdi_reviews }}</div></div>
+          </div>
+          {% for job in snapshot.open_jobs %}
+            <div class="job-line"><div><strong>{{ job.work_order }}</strong> &middot; {{ job.operation }}<br><small>{{ job.parts_produced }} of {{ job.lot_quantity }} parts</small></div>
+              <div class="progress"><span style="width:{{ job.parts_produced|pct:job.lot_quantity }}%"></span></div></div>
+          {% empty %}<span class="badge b-success">No job running on this machine</span>{% endfor %}
+        </div>
+      </div>
+    </aside>
+  </div>
+  </form>
+{% endblock %}

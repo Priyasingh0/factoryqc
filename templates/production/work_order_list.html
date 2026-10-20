@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Work orders{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Work orders" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Production</div><h1>Work orders</h1>
+<p>Releasing a work order generates its digital job traveler. Released orders can no longer be changed.</p></div></div>
+{% endblock %}
+{% block content %}
+  <div class="filter-bar"><input type="search" class="search" placeholder="Search number, part, PO or heat number…" aria-label="Search work orders" data-table-filter="tbl-work-order-list"></div>
+  <div class="table-wrap sticky"><table id="tbl-work-order-list">
+    <thead><tr><th>Number</th><th>Part</th><th class="num">Qty</th><th>Customer PO</th><th>Heat no.</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for wo in object_list %}
+        <tr>
+          <td><a class="row-link" href="{% url 'production:work_order_detail' wo.pk %}">{{ wo.number }}</a></td>
+          <td>{{ wo.part.part_number }}</td>
+          <td class="num">{{ wo.quantity }}</td>
+          <td>{{ wo.customer_po|default:"&ndash;" }}</td>
+          <td class="mono">{{ wo.heat_number|default:"&ndash;" }}</td>
+          <td>{% if wo.is_released %}<span class="badge b-success">Released</span>{% else %}<span class="badge b-neutral">Not released</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">{% include "partials/_empty_card.html" with icon="workorder" title="No work orders yet" text="No work orders yet. Create them in the admin site." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

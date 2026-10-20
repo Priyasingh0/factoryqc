@@ -1,0 +1,2 @@
+{# include with parent="Inspections" url="/inspections/" current="#12" (parent/url optional) #}
+<nav class="crumbs" aria-label="Breadcrumb"><a href="{% url 'accounts:home' %}">Dashboard</a>{% if parent %}<span class="sep">/</span>{% if url %}<a href="{{ url }}">{{ parent }}</a>{% else %}<span>{{ parent }}</span>{% endif %}{% endif %}{% if current %}<span class="sep">/</span><span aria-current="page">{{ current }}</span>{% endif %}</nav>

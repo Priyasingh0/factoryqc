@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Traveler {{ traveler.work_order.number }}{% endblock %}
+{% block header %}
+{% url 'production:traveler_list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Travelers" url=crumb_url current=traveler.work_order.number %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Job traveler</div>
+<h1>Traveler {{ traveler.work_order.number }}{% if traveler.is_rework %} (rework){% endif %} {% badge traveler.status traveler.get_status_display %}</h1></div>
+<div class="actions">
+  <a class="btn btn-ghost" href="{% url 'production:work_order_detail' traveler.work_order.pk %}">Work order</a>
+  {% if quarantine and perms.review.view_quarantinerecord %}<a class="btn btn-danger" href="{% url 'review:quarantine_detail' quarantine.pk %}">Quarantine &amp; MRB record</a>{% endif %}
+  {% if traveler.status == "COMPLETED" and perms.dispatch.view_shipmentmanifest %}<a class="btn" href="{% url 'dispatch:check' traveler.pk %}">Dispatch clearance</a>{% endif %}
+</div></div>
+{% endblock %}
+{% block content %}
+  <div class="summary">
+    <div class="sum accent"><div class="k">Part</div><div class="v">{{ traveler.work_order.part.part_number }}</div></div>
+    <div class="sum"><div class="k">Lot quantity</div><div class="v">{{ traveler.quantity }}</div></div>
+    <div class="sum"><div class="k">Heat no.</div><div class="v" style="font-family:var(--mono)">{{ traveler.work_order.heat_number|default:"–" }}</div></div>
+    <div class="sum {% if traveler.status == 'QUARANTINED' %}bad{% endif %}"><div class="k">Status</div><div class="v">{{ traveler.get_status_display }}</div></div>
+  </div>
+  {% if traveler.status == "QUARANTINED" %}<div class="banner-block"><h2>{% icon "lock" %} Quarantined &ndash; Digital Rejection Holding Area</h2></div>{% endif %}
+  {% if concession %}<div class="alert alert-warn">{% icon "alert" %}<div><strong>Concession lot &ndash; permanently flagged in quality history.</strong></div></div>{% endif %}
+  {% if hold_banner %}<div class="alert alert-danger">{% icon "lock" %}<div><strong>{{ hold_banner }}</strong></div></div>{% endif %}
+
+  {% for row in rows %}
+    {% with op=row.op step=row.step run=row.run %}
+    <div class="reading {% if op.status == 'COMPLETED' %}pass{% elif op.status == 'IN_PROGRESS' %}ctq{% endif %}">
+      <div class="reading-head"><h3><span class="num">{{ step.op_number }}</span>Op {{ step.op_number }}: {{ step.name }}</h3>
+        {% if op.status == "COMPLETED" %}<span class="badge b-success">Completed</span>{% elif op.status == "IN_PROGRESS" %}<span class="badge b-info">In progress</span>{% else %}<span class="badge b-neutral">Pending</span>{% endif %}</div>
+      {% if step.hold_minutes %}<p>Mandatory hold after this step: {{ step.hold_minutes }} min.{% if row.hold_text %} <span class="error">{{ row.hold_text }} remaining.</span>{% endif %}</p>{% endif %}
+      {% if step.is_final_pdi %}<p><em>Final PDI: completed through inspection and supervisor approval.</em></p>
+        {% if op.status == "PENDING" and perms.inspections.conduct_inspection %}<p><a class="btn" href="{% url 'inspections:start' %}">Start final PDI</a></p>{% endif %}{% endif %}
+      {% if op.machine %}
+        <p>Machine {{ op.machine.code }} &middot; Operator {{ op.operator.get_username }} &middot; {{ op.get_shift_display }} shift
+          &middot; In {{ op.clock_in|date:"d M H:i" }}{% if op.clock_out %} &middot; Out {{ op.clock_out|date:"d M H:i" }} &middot; Cycle {{ op.cycle_seconds }} s &middot; Signed off by {{ op.signed_off_by.get_username }}{% endif %}</p>
+      {% endif %}
+      {% if run %}
+        <p>Parts: <strong>{{ run.parts_produced }} / {{ traveler.quantity }}</strong>
+          {% if run.state == "SETUP" %}&middot; <strong class="error">Setup mode &ndash; waiting for QA first-piece sign-off</strong>{% elif run.first_piece_cleared_at %}&middot; First piece signed off by {{ run.first_piece_cleared_by.get_username }}{% endif %}</p>
+        {% if run.first_piece_inspection_id %}<p>First-piece inspection
+          {% if perms.inspections.view_inspection %}<a href="{% url 'inspections:detail' run.first_piece_inspection_id %}">#{{ run.first_piece_inspection_id }}</a>{% else %}#{{ run.first_piece_inspection_id }}{% endif %} submitted.</p>{% endif %}
+        {% if run.state == "SETUP" and perms.inspections.conduct_inspection %}<p><a class="btn" href="{% url 'inspections:start' %}">Inspect first piece</a></p>{% endif %}
+        {% if row.inspection.due %}<div class="alert alert-danger">{% icon "alert" %}<div><strong>{{ row.inspection.message }}</strong></div></div>{% endif %}
+      {% endif %}
+
+      <div class="row" style="margin-top:.5rem">
+        {% if row.can_start %}
+          <form method="post" action="{% url 'production:start' op.pk %}" style="min-width:320px;flex:1" class="measure-form">{% csrf_token %}
+            <label for="mq{{ op.pk }}">{{ start_form.machine_qr.label }}</label>
+            <div class="field"><textarea id="mq{{ op.pk }}" name="machine_qr" rows="2" required></textarea></div>
+            <label for="tc{{ op.pk }}">{{ start_form.traveler_code.label }}</label>
+            <div class="field"><textarea id="tc{{ op.pk }}" name="traveler_code" rows="2" required></textarea></div>
+            <button type="submit" class="btn-lg">Start operation</button>
+          </form>
+        {% endif %}
+        {% if row.can_count %}
+          <form method="post" action="{% url 'production:parts' op.pk %}">{% csrf_token %}
+            <label for="c{{ op.pk }}">{{ parts_form.count.label }}</label>
+            <input id="c{{ op.pk }}" name="count" type="number" min="1" required style="width:160px;min-height:56px;font-size:1.3rem">
+            <button type="submit" class="btn-lg">Add parts</button>
+          </form>
+        {% endif %}
+        {% if row.can_complete %}
+          <form method="post" action="{% url 'production:complete' op.pk %}">{% csrf_token %}<button type="submit" data-confirm="Complete and sign off this operation?">Complete &amp; sign off</button></form>
+        {% endif %}
+        {% if row.can_clear %}
+          <form method="post" action="{% url 'production:first_piece' op.pk %}">{% csrf_token %}<button type="submit">Sign off first piece</button></form>
+        {% endif %}
+        {% if row.can_check %}
+          <form method="post" action="{% url 'production:periodic_check' op.pk %}">{% csrf_token %}<button type="submit">Log periodic inspection</button></form>
+        {% endif %}
+      </div>
+    </div>
+    {% endwith %}
+  {% endfor %}
+
+  <section class="section">
+    <header>{% icon "traveler" %}<h2>Traveler barcode</h2></header>
+    <div class="body"><p class="help">Printed on the traveler sheet and scanned at every station. Signed, so it cannot be forged.</p>
+    <textarea readonly rows="3" aria-label="Traveler barcode">{{ traveler.barcode }}</textarea></div>
+  </section>
+  {% if serials %}
+    <section class="section"><header>{% icon "part" %}<h2>Part serials</h2></header>
+    <div class="body chips-inline">{% for s in serials %}<span class="badge b-neutral" style="font-family:var(--mono)">{{ s.serial_number }}</span>{% endfor %}</div></section>
+  {% endif %}
+{% endblock %}

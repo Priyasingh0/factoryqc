@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Suppliers{% endblock %}
+{% block header %}
+{% url 'materials:list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Materials" url=crumb_url current="Suppliers" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Supply</div><h1>Suppliers</h1><p>Supplier master used for raw-material traceability.</p></div></div>
+{% endblock %}
+{% block content %}
+  <div class="filter-bar"><input type="search" class="search" placeholder="Search code, name or email…" aria-label="Search suppliers" data-table-filter="tbl-supplier-list"></div>
+  <div class="table-wrap sticky"><table id="tbl-supplier-list">
+    <thead><tr><th>Code</th><th>Name</th><th>Email</th><th>Phone</th><th>Active</th></tr></thead>
+    <tbody>
+      {% for s in object_list %}
+        <tr><td class="mono"><strong>{{ s.code }}</strong></td><td>{{ s.name }}</td><td>{{ s.email|default:"&ndash;" }}</td><td>{{ s.phone|default:"&ndash;" }}</td>
+          <td>{% if s.is_active %}<span class="badge b-success">Yes</span>{% else %}<span class="badge b-neutral">No</span>{% endif %}</td></tr>
+      {% empty %}
+        <tr><td colspan="5">{% include "partials/_empty_card.html" with icon="users" title="No suppliers yet" text="No suppliers yet. Add them in the admin site." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

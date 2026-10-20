@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Label locked{% endblock %}
+{% block content %}
+  <div class="banner-block" style="max-width:760px">
+    <h1 class="error">{% icon "lock" %} Label locked</h1>
+    <p>{{ intake.lot_number }} is <strong>{{ intake.get_status_display }}</strong>. The sample tag is printed while the lot is in lab testing, and the bundle barcode only after the lot is cleared.</p>
+  </div>
+  <a class="btn btn-ghost" href="{% url 'materials:detail' intake.pk %}">&larr; {{ intake.lot_number }}</a>
+{% endblock %}

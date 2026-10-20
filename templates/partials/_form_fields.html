@@ -1,0 +1,12 @@
+{# Renders every field of `form` with label, required marker, help text and inline errors. #}
+{% if form.non_field_errors %}<div class="alert alert-danger"><div>{% for e in form.non_field_errors %}<strong>{{ e }}</strong>{% endfor %}</div></div>{% endif %}
+{% for field in form %}
+  {% if field.is_hidden %}{{ field }}{% else %}
+  <div class="field{% if field.errors %} has-error{% endif %}">
+    <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="req" title="required">*</span>{% endif %}</label>
+    {{ field }}
+    {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+    {% for e in field.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+  </div>
+  {% endif %}
+{% endfor %}

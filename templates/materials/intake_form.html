@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}New intake{% endblock %}
+{% block header %}
+{% url 'materials:list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Materials" url=crumb_url current="New intake" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Receiving</div><h1>Log raw material intake</h1>
+<p>Attach the supplier's mill test certificate. The record cannot be saved without a readable MTC and a matching heat number.</p></div></div>
+{% endblock %}
+{% block content %}
+  <form method="post" enctype="multipart/form-data" class="form-narrow" style="max-width:820px">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{% icon "alert" %}<div>{% for e in form.non_field_errors %}<strong>{{ e }}</strong>{% endfor %}</div></div>{% endif %}
+    {% if form.errors %}<div class="alert alert-danger">{% icon "alert" %}<div><strong>Please fix the highlighted fields.</strong></div></div>{% endif %}
+    <section class="form-section">
+      <h3>1 &middot; Supplier &amp; order</h3>
+      <div class="grid cols-2">
+        {% for field in form %}{% if field.name == "supplier" or field.name == "po_number" %}
+          <div class="field{% if field.errors %} has-error{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="req">*</span>{% endif %}</label>{{ field }}{% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}{% for e in field.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+        {% endif %}{% endfor %}
+      </div>
+    </section>
+    <section class="form-section">
+      <h3>2 &middot; Material &amp; traceability</h3>
+      <div class="grid cols-2">
+        {% for field in form %}{% if field.name == "grade" or field.name == "heat_number" or field.name == "quantity" or field.name == "unit" %}
+          <div class="field{% if field.errors %} has-error{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="req">*</span>{% endif %}</label>{{ field }}{% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}{% for e in field.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+        {% endif %}{% endfor %}
+      </div>
+    </section>
+    <section class="form-section">
+      <h3>3 &middot; Certificate &amp; other details</h3>
+      {% for field in form %}{% if field.name != "supplier" and field.name != "po_number" and field.name != "grade" and field.name != "heat_number" and field.name != "quantity" and field.name != "unit" %}
+        {% if field.is_hidden %}{{ field }}{% else %}
+        <div class="field{% if field.errors %} has-error{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="req">*</span>{% endif %}</label>{{ field }}{% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}{% for e in field.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+        {% endif %}
+      {% endif %}{% endfor %}
+    </section>
+    <div class="form-actions"><button type="submit" class="btn-lg">Save intake</button><a class="btn btn-ghost btn-lg" href="{% url 'materials:list' %}">Cancel</a></div>
+  </form>
+{% endblock %}

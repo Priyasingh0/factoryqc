@@ -1,0 +1,2 @@
+{% load ui %}{# include with icon=, title=, text=, [action_url=, action_label=] #}
+<div class="empty-card"><div class="ico">{% icon icon|default:"inbox" %}</div><h3>{{ title }}</h3><p>{{ text }}</p>{% if action_url %}<a class="btn" href="{{ action_url }}">{{ action_label }}</a>{% endif %}</div>

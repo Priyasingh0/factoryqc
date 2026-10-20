@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Job travelers{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Travelers" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Production</div><h1>Job travelers</h1>
+<p>One digital traveler per lot, scanned at every station.</p></div>
+<div class="actions"><a class="btn btn-ghost" href="{% url 'production:trace' %}">{% icon "shield" %} Traceability search (heat number / serial)</a></div></div>
+{% endblock %}
+{% block content %}
+  <div class="filter-bar"><input type="search" class="search" placeholder="Search work order or part…" aria-label="Search travelers" data-table-filter="tbl-traveler-list"></div>
+  <div class="table-wrap sticky"><table id="tbl-traveler-list">
+    <thead><tr><th>Work order</th><th>Part</th><th class="num">Qty</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for t in object_list %}
+        <tr class="{% if t.status == 'QUARANTINED' %}row-danger{% endif %}">
+          <td><a class="row-link" href="{% url 'production:traveler_detail' t.pk %}">{{ t.work_order.number }}{% if t.is_rework %} (rework){% endif %}</a></td>
+          <td>{{ t.work_order.part.part_number }}</td>
+          <td class="num">{{ t.quantity }}</td>
+          <td>{% badge t.status t.get_status_display %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">{% include "partials/_empty_card.html" with icon="traveler" title="No travelers yet" text="No travelers yet. Release a work order to generate one." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

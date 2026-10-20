@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Quarantine{% endblock %}
+{% block header %}
+{% url 'review:queue' as crumb_url %}{% include "partials/_crumbs.html" with parent="Supervisor review" url=crumb_url current="Quarantine & MRB" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Quality</div><h1>Digital Rejection Holding Area</h1>
+<p>Lots held until the Material Review Board has executed a disposition.</p></div></div>
+{% endblock %}
+{% block content %}
+  <div class="filter-bar"><input type="search" class="search" placeholder="Search work order or part…" aria-label="Search quarantined lots" data-table-filter="tbl-quarantine-list"></div>
+  <div class="table-wrap sticky"><table id="tbl-quarantine-list">
+    <thead><tr><th>Lot</th><th>Part</th><th>Inspection</th><th>Since</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for q in object_list %}
+        <tr class="{% if q.status == 'OPEN' %}row-danger{% endif %}">
+          <td><a class="row-link" href="{% url 'review:quarantine_detail' q.pk %}">{{ q.traveler.work_order.number }}{% if q.traveler.is_rework %} (rework){% endif %}</a></td>
+          <td>{{ q.traveler.work_order.part.part_number }}</td>
+          <td>#{{ q.inspection_id }}</td>
+          <td>{{ q.created_at|date:"d M H:i" }}</td>
+          <td>{% badge q.status q.get_status_display %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">{% include "partials/_empty_card.html" with icon="shield" title="Nothing in quarantine" text="No lots have been quarantined." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

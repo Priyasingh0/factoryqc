@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+db.sqlite3
+media/*
+!media/.gitkeep
+.env
+.DS_Store
+
+db.sqlite3.pre-step9
+ui_step3.tgz
+_to_delete/

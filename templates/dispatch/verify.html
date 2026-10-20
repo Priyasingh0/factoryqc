@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Inspection certificate</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:900px;margin:32px auto;padding:0 16px;color:#111}
+  table{width:100%;border-collapse:collapse}th,td{padding:8px 10px;border-bottom:1px solid #ddd;text-align:left;font-size:15px}th{background:#eee}
+  .ok{color:#15803d;font-weight:600}.error{color:#b91c1c;font-weight:600}.ctq{color:#c2410c;font-weight:600}
+</style></head>
+<body>
+  <h1>Certified inspection report</h1>
+  {% if not valid %}
+    <p class="error" style="font-size:20px">This certificate is not currently valid. Contact the supplier.</p>
+  {% endif %}
+  <p>Part <strong>{{ part.part_number }}</strong> &middot; Work order {{ work_order.number }} &middot; Customer PO <strong>{{ manifest.customer_po }}</strong>
+     &middot; Heat no. {{ work_order.heat_number|default:"&ndash;" }} &middot; Crate {{ label.crate_number }} of shipment {{ manifest.pk }}</p>
+  {% if concession %}<p class="error">Released on concession ({{ concession.get_reason_code_display }}).</p>{% endif %}
+  {% if decision %}
+    <p>Final pre-dispatch inspection <strong>{{ decision.get_decision_display|lower }}</strong> by Quality
+       ({{ decision.decided_by.get_full_name|default:decision.decided_by.get_username }}, {{ decision.decided_by.get_role_display }})
+       on {{ decision.decided_at|date:"d M Y H:i" }}.</p>
+  {% endif %}
+  <h2>Measured values</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Characteristic</th><th>Specification</th><th>Measured</th><th>Gauge</th><th>Result</th></tr></thead>
+    <tbody>
+      {% for m in readings %}
+        <tr>
+          <td>{{ m.field.label }}{% if m.field.is_ctq %} <span class="ctq">(CTQ)</span>{% endif %}</td>
+          <td>{{ m.field.spec_display }}</td>
+          <td>{{ m.display_value }}</td>
+          <td>{{ m.gauge.gauge_id|default:"&ndash;" }}</td>
+          <td>{% if m.is_within_tolerance %}<span class="ok">Pass</span>{% else %}<span class="error">Out of tolerance</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">No measurements on record.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <h2>Raw material</h2>
+  {% for lot in lots %}
+    <p>Supplier {{ lot.supplier.name }} &middot; grade {{ lot.grade.code }} &middot; heat {{ lot.heat_number }}
+       &middot; mill test certificate verified by Quality on {{ lot.mtc_verified_at|date:"d M Y" }}</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Property</th><th>Specification</th><th>Certified value</th></tr></thead>
+      <tbody>
+        {% for r in lot.readings.all %}
+          <tr><td>{{ r.grade_property.name }}</td><td>{{ r.spec_display }}</td><td>{{ r.value }} {{ r.grade_property.unit }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  {% empty %}
+    <p>Heat number {{ work_order.heat_number|default:"&ndash;" }}.</p>
+  {% endfor %}
+  <h2>Serial numbers in this shipment</h2>
+  <p>{% for s in serials %}{{ s.serial_number }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+</body></html>

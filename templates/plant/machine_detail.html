@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{{ machine.code }}{% endblock %}
+{% block header %}
+{% url 'plant:machine_list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Machines" url=crumb_url current=machine.code %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Machine</div><h1>{{ machine.code }} &ndash; {{ machine.name }} {% if not machine.is_active %}<span class="badge b-danger">Inactive</span>{% endif %}</h1>
+<p>Department: {{ machine.department.name }}</p></div></div>
+{% endblock %}
+{% block content %}
+  {% if readiness.ready %}
+    <div class="hero ok"><div class="ico">{% icon "check" %}</div><div class="grow"><h2>Job selection ready</h2><p>Ready. PM and safety checks are complete for the {{ shift_label }} shift ({{ shift_date|date:"d M Y" }}).</p></div></div>
+  {% else %}
+    <div class="hero bad"><div class="ico">{% icon "lock" %}</div><div class="grow"><h2>Job selection locked</h2><p>Locked. {{ readiness.reason }}</p></div></div>
+  {% endif %}
+
+  <div class="grid cols-2" style="align-items:start">
+    {% if can_record and machine.is_active %}
+    <form method="post" action="{% url 'plant:pm_check_create' machine.pk %}" class="section">{% csrf_token %}
+      <header>{% icon "checklist" %}<h3>Record PM check &ndash; {{ shift_label }} shift</h3></header>
+      <div class="body">
+        <div class="field"><label>{{ form.completed }} {{ form.completed.label }}</label></div>
+        <div class="field"><label>{{ form.safety_zero_point_ok }} {{ form.safety_zero_point_ok.label }}</label></div>
+        <div class="field"><label for="{{ form.remarks.id_for_label }}">{{ form.remarks.label }}</label>{{ form.remarks }}{% for e in form.remarks.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+        {% for e in form.non_field_errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+        <button type="submit" class="btn-lg">Save PM check</button>
+      </div>
+    </form>
+    {% endif %}
+    <section class="section">
+      <header>{% icon "shield" %}<h2>Station QR token</h2></header>
+      <div class="body"><p class="help">Printed on the station plate; scanned by inspectors (PRD 5.1). Signed, so it cannot be forged.</p>
+      <textarea readonly rows="4" aria-label="Station QR token">{{ machine.qr_token }}</textarea></div>
+    </section>
+  </div>
+
+  <section class="section">
+    <header>{% icon "audit" %}<h2>Recent PM checks</h2></header>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>Shift</th><th>Checklist</th><th>Safety zero-point</th><th>By</th></tr></thead>
+      <tbody>
+        {% for c in recent_checks %}
+          <tr>
+            <td>{{ c.date|date:"d M Y" }}</td><td>{{ c.get_shift_display }}</td>
+            <td>{% if c.completed %}<span class="badge b-success">Done</span>{% else %}<span class="badge b-danger">Not done</span>{% endif %}</td>
+            <td>{% if c.safety_zero_point_ok %}<span class="badge b-success">Passed</span>{% else %}<span class="badge b-danger">Not passed</span>{% endif %}</td>
+            <td>{{ c.performed_by.get_username }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty-cell">No PM checks recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Invoice {{ document.number }}{% endblock %}
+{% block content %}
+  <h1>Commercial Invoice {{ document.number }}</h1>
+  {% include "dispatch/_doc_head.html" %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Description</th><th>Quantity</th><th>Serial numbers</th></tr></thead>
+    <tbody><tr>
+      <td>{{ manifest.traveler.work_order.part.part_number }}</td><td>{{ manifest.batch_size }}</td>
+      <td>{% for i in items %}{{ i.serial.serial_number }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+    </tr></tbody>
+  </table></div>
+  <p><small>Prices and taxes are added by the accounts system; this record covers the goods shipped.</small></p>
+  <p>Issued {{ document.issued_at|date:"d M Y H:i" }} by {{ document.issued_by.get_username }}.</p>
+  <p><a href="{% url 'dispatch:manifest' manifest.pk %}">&larr; Manifest</a></p>
+{% endblock %}

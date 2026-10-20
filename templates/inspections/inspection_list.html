@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Inspections{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Inspections" %}
+<div class="page-head">
+  <div class="titles"><div class="eyebrow">Quality</div><h1>Inspections</h1>
+    <p>First-piece, in-process and final PDI checks, with every reading, gauge and decision on record.</p></div>
+  <div class="actions">
+    {% if my_open %}<a class="btn btn-accent" href="{% url 'inspections:detail' my_open.pk %}">Resume #{{ my_open.pk }}</a>
+    {% elif perms.inspections.conduct_inspection %}<a class="btn btn-lg" href="{% url 'inspections:start' %}">{% icon "inspect" %} Start inspection</a>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+  {% if my_open %}
+    <div class="hero info"><div class="ico">{% icon "inspect" %}</div><div class="grow"><h2>You have an open inspection</h2><p>Inspection #{{ my_open.pk }} is in progress. Finish or submit it before starting another.</p></div>
+      <a class="btn" href="{% url 'inspections:detail' my_open.pk %}">Resume #{{ my_open.pk }}</a></div>
+  {% endif %}
+  <div class="filter-bar">
+    <input type="search" class="search" placeholder="Search by work order, part, station or inspector…" aria-label="Search inspections" data-table-filter="tbl-inspection-list">
+    <div class="pills" role="group" aria-label="Filter by status">
+      <a class="pill{% if not current_status %} on{% endif %}" href="?">All</a>
+      {% for value, label in statuses %}<a class="pill{% if value == current_status %} on{% endif %}" href="?status={{ value }}">{{ label }}</a>{% endfor %}
+    </div>
+  </div>
+  <div class="table-wrap sticky"><table id="tbl-inspection-list">
+    <thead><tr><th>#</th><th>Type</th><th>Work order</th><th>Part</th><th>Station</th><th>Inspector</th><th>Status</th><th>Started</th></tr></thead>
+    <tbody>
+      {% for i in object_list %}
+        <tr>
+          <td><a class="row-link" href="{% url 'inspections:detail' i.pk %}">#{{ i.pk }}</a></td>
+          <td>{{ i.get_checklist_type_display }}</td>
+          <td><strong>{{ i.traveler.work_order.number }}</strong></td>
+          <td>{{ i.traveler.work_order.part.part_number }}</td>
+          <td>{{ i.machine.code }}</td>
+          <td>{{ i.inspector.get_username }}</td>
+          <td>{% badge i.status i.get_status_display %}</td>
+          <td>{{ i.started_at|date:"d M H:i" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8">{% include "partials/_empty_card.html" with icon="inspect" title="No inspections yet" text="Inspections appear here once an inspector scans a station and a job traveler. Try clearing the status filter." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% include "partials/_pagination.html" %}
+{% endblock %}

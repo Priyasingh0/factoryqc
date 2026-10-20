@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Access denied{% endblock %}
+{% block content %}
+  <div class="section" style="max-width:640px;margin:2rem auto"><div class="body empty-card">
+    <div class="ico" style="background:var(--red-100);color:var(--red-700)">{% icon "lock" %}</div>
+    <h1 style="font-size:1.5rem">Access denied</h1>
+    <p>Your role does not allow you to open this page.</p>
+    <a class="btn" href="{% url 'accounts:home' %}">Back to home</a>
+  </div></div>
+{% endblock %}

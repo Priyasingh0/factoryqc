@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Notifications{% endblock %}
+{% block header %}
+<div class="page-head"><div class="titles"><h1>Notifications</h1><p>Alerts sent to you. New items are highlighted until you have opened this page.</p></div></div>
+{% endblock %}
+{% block content %}
+<div class="table-tools">
+  <a class="btn btn-sm {% if not request.GET.channel %}{% else %}btn-ghost{% endif %}" href="{% url 'core:notifications' %}">All</a>
+  {% for value, label in channels %}<a class="btn btn-sm {% if request.GET.channel == value %}{% else %}btn-ghost{% endif %}" href="?channel={{ value }}">{{ label }}</a>{% endfor %}
+</div>
+<div class="table-wrap">
+<table id="notif-table">
+  <thead><tr><th>When</th><th>Subject</th><th>Channel</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for n in notifications %}
+    <tr{% if seen_before and n.created_at > seen_before or not seen_before %} class="row-ctq"{% endif %}>
+      <td>{{ n.created_at|date:"Y-m-d H:i" }}</td>
+      <td><strong>{{ n.subject }}</strong><br><small>{{ n.body|truncatechars:160 }}</small></td>
+      <td>{{ n.get_channel_display }}</td>
+      <td>{% badge n.status n.get_status_display %}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="4" class="empty-cell">You have no notifications.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "partials/_pagination.html" %}
+{% endblock %}

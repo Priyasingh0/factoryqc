@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Review queue{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Supervisor review" %}
+<div class="page-head">
+  <div class="titles"><h1>Approval queue</h1>
+    <p>Inspections marked <strong>Awaiting approval</strong>, and checklists frozen by a CTQ failure. CTQ failures are listed first.</p></div>
+  <div class="actions"><a class="btn btn-ghost" href="{% url 'review:quarantine_list' %}">{% icon "lock" %} Quarantine &amp; MRB</a></div>
+</div>
+{% endblock %}
+{% block content %}
+  <div class="summary">
+    <div class="sum {% if rows %}warn{% else %}accent{% endif %}"><div class="k">Waiting for a decision</div><div class="v">{{ rows|length }}</div><div class="s">{% if rows %}CTQ failures first, then longest wait{% else %}Queue is clear{% endif %}</div></div>
+    <div class="sum {% if rows|count_where:'ctq' %}bad{% endif %}"><div class="k">CTQ failures</div><div class="v">{{ rows|count_where:"ctq" }}</div><div class="s">Frozen &ndash; concession not allowed</div></div>
+    <div class="sum"><div class="k">Longest wait</div><div class="v">{% if rows %}{{ rows|max_of:"waiting_minutes"|duration }}{% else %}&ndash;{% endif %}</div><div class="s">Since submitted or frozen</div></div>
+  </div>
+  <div class="filter-bar">
+    <input type="search" class="search" placeholder="Search work order, part, machine or inspector&hellip;" aria-label="Search queue" data-table-filter="tbl-queue">
+    <span class="muted" style="font-size:.82rem">Sort by</span>
+    <div class="pills" role="group" aria-label="Sort by">
+      {% for key, label in sorts.items %}<a class="pill{% if key == sort %} on{% endif %}" href="?sort={{ key }}">{{ label }}</a>{% endfor %}
+    </div>
+  </div>
+  <div class="table-wrap sticky"><table id="tbl-queue" class="queue">
+    <thead><tr><th>Inspection</th><th>Job</th><th>Station</th><th>Inspector</th><th>Shift</th><th>Findings</th><th class="num">Waiting</th><th class="actions"></th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+        <tr class="urg {% if r.inspection.status == 'FROZEN' %}urg-bad{% elif r.failed %}urg-warn{% endif %}">
+          <td><a class="row-link" href="{% url 'review:detail' r.inspection.pk %}">#{{ r.inspection.pk }}</a><span class="sub">{{ r.inspection.get_checklist_type_display }}</span></td>
+          <td><strong>{{ r.inspection.traveler.work_order.number }}</strong><span class="sub">{{ r.inspection.traveler.work_order.part.part_number }}</span></td>
+          <td class="mono">{{ r.inspection.machine.code }}</td>
+          <td>{{ r.inspection.inspector.get_username }}</td>
+          <td>{{ r.shift_date|date:"d M" }}<span class="sub">{{ r.shift|title }} shift</span></td>
+          <td>
+            {% if r.inspection.status == "FROZEN" %}<span class="badge b-danger">FROZEN &ndash; CTQ failure</span>
+            {% elif r.failed %}<span class="badge b-warn">{{ r.failed }} out of tolerance</span>
+            {% else %}<span class="badge b-success">All in tolerance</span>{% endif %}
+          </td>
+          <td class="num"><strong>{{ r.waiting_minutes|duration }}</strong></td>
+          <td class="actions"><a class="btn btn-sm {% if r.inspection.status != 'FROZEN' and not r.failed %}btn-ghost{% endif %}" href="{% url 'review:detail' r.inspection.pk %}">Review</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8">{% include "partials/_empty_card.html" with icon="check" title="Nothing is waiting for a decision" text="Submitted inspections and CTQ-frozen checklists will appear here for a supervisor." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

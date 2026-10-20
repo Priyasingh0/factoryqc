@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Gauges{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Gauges" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Plant</div><h1>Measuring gauge register</h1>
+<p>Only gauges with a valid calibration can be logged against a reading.</p></div></div>
+{% endblock %}
+{% block content %}
+  <div class="filter-bar"><input type="search" class="search" placeholder="Search gauge ID or type…" aria-label="Search gauges" data-table-filter="tbl-gauge-list"></div>
+  <div class="table-wrap sticky"><table id="tbl-gauge-list">
+    <thead><tr><th>Gauge ID</th><th>Type</th><th>Calibrated on</th><th>Expires</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for g in object_list %}
+        <tr class="{% if g.status == 'EXPIRED' %}row-danger{% endif %}">
+          <td class="mono"><strong>{{ g.gauge_id }}</strong></td>
+          <td>{{ g.get_gauge_type_display }}</td>
+          <td>{{ g.calibrated_on|date:"d M Y" }}</td>
+          <td>{{ g.calibration_expiry|date:"d M Y" }}</td>
+          <td>{% if g.status == "VALID" %}<span class="badge b-success">Valid</span>{% elif g.status == "EXPIRED" %}<span class="badge b-danger">Expired</span>{% else %}<span class="badge b-neutral">Inactive</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">{% include "partials/_empty_card.html" with icon="gauge" title="No gauges registered yet" text="No gauges registered yet." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

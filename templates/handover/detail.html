@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{{ handover }}{% endblock %}
+{% block header %}
+{% url 'handover:board' as crumb_url %}{% include "partials/_crumbs.html" with parent="Handover" url=crumb_url current=handover.machine.code %}
+<div class="page-head">
+  <div class="titles"><h1>{{ handover.machine.code }}: {{ handover.get_shift_display }} shift, {{ handover.shift_date|date:"d M Y" }} {% badge handover.status handover.status_label %}</h1>
+    <p>Handed over by {{ handover.outgoing_by.get_username }} at {{ handover.created_at|date:"d M H:i" }}</p></div>
+</div>
+{% endblock %}
+{% block content %}
+  {% if acknowledgement %}
+    <div class="hero ok"><div class="ico">{% icon "check" %}</div><div class="grow"><h2>Handover complete</h2><p>Signed and acknowledged. The machine is released for the incoming shift.</p></div></div>
+  {% else %}
+    <div class="hero warn"><div class="ico">{% icon "lock" %}</div><div class="grow"><h2>Machine locked for the next shift</h2><p>{% if not signoff %}Waiting for a supervisor countersign, then for the incoming worker to acknowledge.{% else %}Countersigned. Waiting for the incoming worker to acknowledge.{% endif %}</p></div></div>
+  {% endif %}
+
+  <ol class="chain" aria-label="Handover progress">
+    <li class="done"><span class="cn">{% icon "check" %}</span><div><div class="ct">Outgoing handover <span class="badge b-success">Done</span></div>
+      <div class="cw"><b>{{ handover.outgoing_by.get_username }}</b> &middot; {{ handover.outgoing_by.get_role_display }}</div><div class="cm">{{ handover.created_at|date:"d M Y, H:i" }}</div></div></li>
+    <li class="{% if signoff %}done{% else %}current{% endif %}"><span class="cn">{% if signoff %}{% icon "check" %}{% else %}2{% endif %}</span><div>
+      <div class="ct">Supervisor countersign {% if signoff %}<span class="badge b-success">Signed</span>{% else %}<span class="badge b-warn">Pending</span>{% endif %}</div>
+      {% if signoff %}<div class="cw"><b>{{ signoff.signed_by.get_username }}</b> &middot; {{ signoff.signed_by.get_role_display }}</div><div class="cm">{{ signoff.signed_at|date:"d M Y, H:i" }}</div>{% if signoff.remarks %}<div class="cq">{{ signoff.remarks }}</div>{% endif %}
+      {% else %}<div class="cw">Responsible role: Supervisor (not the outgoing operator)</div>{% endif %}</div></li>
+    <li class="{% if acknowledgement %}done{% elif signoff %}current{% else %}waiting{% endif %}"><span class="cn">{% if acknowledgement %}{% icon "check" %}{% else %}3{% endif %}</span><div>
+      <div class="ct">Incoming acknowledgement {% if acknowledgement %}<span class="badge b-success">Acknowledged</span>{% else %}<span class="badge b-warn">Pending</span>{% endif %}</div>
+      {% if acknowledgement %}<div class="cw"><b>{{ acknowledgement.acknowledged_by.get_username }}</b> &middot; {{ acknowledgement.acknowledged_by.get_role_display }}</div><div class="cm">{{ acknowledgement.acknowledged_at|date:"d M Y, H:i" }}</div>{% if acknowledgement.remarks %}<div class="cq">{{ acknowledgement.remarks }}</div>{% endif %}
+      {% else %}<div class="cw">Responsible role: incoming shift worker</div>{% endif %}</div></li>
+  </ol>
+
+  <div class="split">
+    <div>
+      <div class="summary">
+        <div class="sum"><div class="k">Parts this shift</div><div class="v">{{ handover.parts_produced }}</div></div>
+        <div class="sum {% if handover.scrap_count %}warn{% endif %}"><div class="k">Scrap</div><div class="v">{{ handover.scrap_count }}</div></div>
+        <div class="sum {% if handover.open_quality_alerts %}bad{% endif %}"><div class="k">Open quality alerts</div><div class="v">{{ handover.open_quality_alerts }}</div></div>
+        <div class="sum {% if handover.pending_pdi_reviews %}warn{% endif %}"><div class="k">Pending PDI reviews</div><div class="v">{{ handover.pending_pdi_reviews }}</div></div>
+      </div>
+      <section class="section"><header>{% icon "machine" %}<h2>Machine condition</h2></header><div class="body">
+        <div class="cond">
+          <div class="cond-card"><div class="k">Tool wear</div>
+            <span class="badge {% if handover.tool_wear == 'OK' %}b-success{% elif handover.tool_wear == 'WATCH' %}b-warn{% else %}b-danger{% endif %}">{{ handover.get_tool_wear_display }}</span>
+            {% if handover.tool_wear_notes %}<div class="note">{{ handover.tool_wear_notes }}</div>{% endif %}</div>
+          <div class="cond-card"><div class="k">Machine health</div>
+            <span class="badge {% if handover.machine_health == 'GOOD' %}b-success{% elif handover.machine_health == 'DEGRADED' %}b-warn{% else %}b-danger{% endif %}">{{ handover.get_machine_health_display }}</span>
+            {% if handover.machine_health_notes %}<div class="note">{{ handover.machine_health_notes }}</div>{% endif %}</div>
+        </div></div></section>
+      <section class="section"><header>{% icon "workorder" %}<h2>Running jobs</h2></header><div class="body">
+        {% for job in handover.open_jobs %}
+          <div class="job-line"><div><strong>{{ job.work_order }}</strong> &middot; {{ job.operation }}<br><small>{{ job.parts_produced }}/{{ job.lot_quantity }} parts</small></div><div class="progress"><span style="width:{{ job.parts_produced|pct:job.lot_quantity }}%"></span></div></div>
+        {% empty %}<p class="muted" style="margin:0">None.</p>{% endfor %}
+        {% if handover.job_status_notes %}<div class="cq" style="margin-top:.75rem">{{ handover.job_status_notes }}</div>{% endif %}
+      </div></section>
+    </div>
+    <aside>
+      {% if can_sign or can_ack %}
+        <form method="post" class="panel">{% csrf_token %}
+          <header>{% icon "pen" %}<h2>{% if can_sign %}Countersign{% else %}Acknowledge{% endif %}</h2></header>
+          <div class="body">
+            <p class="muted" style="font-size:.86rem">{% if can_sign %}Your name and the time are recorded permanently.{% else %}Confirm you have read this handover before starting work.{% endif %}</p>
+            <div class="field">{{ form.remarks.label_tag }} {{ form.remarks }}</div>
+            {% if can_sign %}<button type="submit" class="btn-lg btn-block" data-confirm="Countersign this handover? Your name is recorded permanently." formaction="{% url 'handover:sign' handover.pk %}">Countersign handover</button>{% endif %}
+            {% if can_ack %}<button type="submit" class="btn-lg btn-block" data-confirm="Confirm you have reviewed this handover?" formaction="{% url 'handover:acknowledge' handover.pk %}">I reviewed this: acknowledge</button>{% endif %}
+          </div>
+        </form>
+      {% else %}
+        <div class="panel"><header>{% icon "shield" %}<h2>Sign-off record</h2></header><div class="body">
+          <dl class="meta-grid" style="grid-template-columns:1fr">
+            <div><dt>Supervisor sign-off</dt><dd>{% if signoff %}{{ signoff.signed_by.get_username }} at {{ signoff.signed_at|date:"d M H:i" }}{% else %}<span class="error">Not yet signed</span>{% endif %}</dd></div>
+            <div><dt>Incoming acknowledgement</dt><dd>{% if acknowledgement %}{{ acknowledgement.acknowledged_by.get_username }} at {{ acknowledgement.acknowledged_at|date:"d M H:i" }}{% else %}<span class="error">Not yet acknowledged</span>{% endif %}</dd></div>
+          </dl></div></div>
+      {% endif %}
+    </aside>
+  </div>
+{% endblock %}

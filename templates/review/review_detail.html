@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% load ui l10n %}
+{% block title %}Review #{{ inspection.pk }}{% endblock %}
+{% block header %}
+{% url 'review:queue' as crumb_url %}{% include "partials/_crumbs.html" with parent="Supervisor review" url=crumb_url current=inspection.pk %}
+<div class="page-head">
+  <div class="titles"><h1>{{ inspection.get_checklist_type_display }} #{{ inspection.pk }} {% badge inspection.status inspection.get_status_display %}</h1>
+    <p>Review the readings, gauges and defect evidence, then record one final decision for {{ inspection.traveler.work_order.part.part_number }} &times; {{ inspection.traveler.quantity }} on {{ inspection.traveler.work_order.number }}.</p></div>
+  <div class="actions"><a class="btn btn-ghost" href="{% url 'inspections:detail' inspection.pk %}">{% icon "inspect" %}Inspection record</a></div>
+</div>
+{% endblock %}
+{% block content %}
+  {% with nfail=readings|failed_count nctq=readings|ctq_failed_count %}
+  <div class="ws-bar{% if inspection.status == 'FROZEN' %} tone-bad{% endif %}">
+    <div class="ws-cell ws-job"><div class="k">{% icon "traveler" %}Job &middot; traveler</div><div class="v">{{ inspection.traveler.work_order.number }}</div><div class="s">{{ inspection.traveler.work_order.part.part_number }} &middot; qty {{ inspection.traveler.quantity }}</div></div>
+    <div class="ws-cell"><div class="k">{% icon "machine" %}Station</div><div class="v">{{ inspection.machine.code }}</div><div class="s">{{ inspection.machine.name }}</div></div>
+    <div class="ws-cell"><div class="k">{% icon "user" %}Inspector</div><div class="v">{{ inspection.inspector.get_username }}</div><div class="s">{% if inspection.submitted_at %}Submitted {{ inspection.submitted_at|date:"d M, H:i" }}{% else %}Started {{ inspection.started_at|date:"d M, H:i" }}{% endif %}</div></div>
+    <div class="ws-cell"><div class="k">{% icon "checklist" %}Result</div><div class="v">{% if readings %}{{ nfail }} of {{ readings|length }} out of tolerance{% else %}No readings{% endif %}</div><div class="s">{% if nctq %}{{ nctq }} critical-to-quality{% elif nfail %}No CTQ failures{% elif readings %}All readings within limits{% else %}Nothing recorded yet{% endif %}</div></div>
+  </div>
+
+  {% if inspection.status == "FROZEN" %}
+    <div class="frozen-banner" role="alert"><div class="fz-ico">{% icon "lock" %}</div><div><h2>Frozen after a CTQ failure</h2><p><strong>{{ inspection.frozen_reason }}</strong></p><p style="margin:0">A concession is not allowed. The lot can only be quarantined.</p></div></div>
+  {% endif %}
+
+  <div class="split">
+    <div>
+      {% if nfail %}
+        <section class="findings">
+          <header>{% icon "alert" %}<h2>{{ nfail }} critical finding{{ nfail|pluralize }}</h2>{% if nctq %}<span class="ctq-tag">{{ nctq }} CTQ</span>{% endif %}</header>
+          <ul>
+            {% for r in readings %}{% if not r.m.is_within_tolerance %}
+              <li><span class="f-name">{{ r.m.field.label }}{% if r.m.field.is_ctq %} <span class="ctq-tag">CTQ</span>{% endif %}</span>
+                <span class="f-val mono">{{ r.m.display_value }}</span>
+                <span class="f-note">{% if r.m.field.lower_limit is not None and r.m.field.upper_limit is not None %}outside limit by <b class="mono">{% excursion r.m.value_numeric r.m.field.lower_limit r.m.field.upper_limit %}</b>{% else %}failed{% endif %} &middot; {{ r.photos|length }} photo{{ r.photos|length|pluralize }}</span></li>
+            {% endif %}{% endfor %}
+          </ul>
+        </section>
+      {% endif %}
+
+      {% if inspection.remarks %}<div class="alert alert-info">{% icon "info" %}<div><strong>Inspector remarks</strong><em>{{ inspection.remarks }}</em></div></div>{% endif %}
+
+      <section class="section">
+        <header>{% icon "inspect" %}<h2>Measurement results</h2><div class="right">{{ readings|length }} reading{{ readings|length|pluralize }}</div></header>
+        <div class="table-wrap"><table class="results">
+          <thead><tr><th>Parameter</th><th>Specification</th><th class="num">Reading</th><th>Position in tolerance</th><th>Result</th></tr></thead>
+          <tbody>
+            {% for r in readings %}
+              {% with f=r.m.field %}
+              <tr class="{% if not r.m.is_within_tolerance %}row-danger{% endif %}">
+                <td><strong>{{ f.label }}</strong>{% if f.is_ctq %} <span class="ctq-tag">CTQ</span>{% endif %}<span class="sub">{% if r.m.gauge %}{{ r.m.gauge.gauge_id }}{% else %}Visual check{% endif %}</span></td>
+                <td class="mono">{{ f.spec_display }}</td>
+                <td class="num"><span class="deviation{% if not r.m.is_within_tolerance %} bad{% endif %}">{{ r.m.display_value }}</span>{% if r.m.value_numeric is not None and f.nominal is not None %}<span class="sub mono">{% deviation r.m.value_numeric f.nominal %} from nominal</span>{% endif %}</td>
+                <td>{% if f.lower_limit is not None and f.upper_limit is not None and r.m.value_numeric is not None %}<div class="scale mini {% if r.m.is_within_tolerance %}in{% else %}out{% endif %}" style="--pos:{% range_pos r.m.value_numeric f.lower_limit f.upper_limit %}%;--nom:{% range_pos f.nominal f.lower_limit f.upper_limit %}%" title="{{ f.lower_limit|floatformat:'4u' }} to {{ f.upper_limit|floatformat:'4u' }}"><div class="scale-track"><span class="scale-band"></span><span class="scale-tick lo"></span><span class="scale-tick nom"></span><span class="scale-tick hi"></span><span class="scale-mark"></span></div></div>{% else %}<span class="muted">&ndash;</span>{% endif %}</td>
+                <td>{% if r.m.is_within_tolerance %}<span class="badge b-success">Pass</span>{% else %}<span class="badge b-danger">Fail</span>{% endif %}</td>
+              </tr>
+              {% endwith %}
+            {% empty %}
+              <tr><td colspan="5" class="empty-cell">No readings were recorded on this checklist.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table></div>
+      </section>
+
+      <div class="grid cols-2" style="align-items:start">
+        <section class="section">
+          <header>{% icon "tool" %}<h2>Gauges and tools</h2></header>
+          {% regroup readings|dictsort:"m.gauge.gauge_id" by m.gauge as gauge_groups %}
+          <div class="table-wrap"><table>
+            <thead><tr><th>Gauge</th><th>Calibration valid to</th><th class="num">Readings</th></tr></thead>
+            <tbody>
+              {% for g in gauge_groups %}{% if g.grouper %}
+                <tr><td><strong>{{ g.grouper.gauge_id }}</strong><span class="sub">{{ g.grouper.get_gauge_type_display }}</span></td><td>{{ g.grouper.calibration_expiry|date:"d M Y" }}</td><td class="num">{{ g.list|length }}</td></tr>
+              {% endif %}{% empty %}
+                <tr><td colspan="3" class="empty-cell">No gauges recorded.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table></div>
+        </section>
+
+        <section class="section {% if nfail %}warn{% endif %}">
+          <header>{% icon "camera" %}<h2>Defect evidence</h2></header>
+          <div class="body">
+            {% for r in readings %}{% if r.photos %}
+              <div class="ev-group"><div class="ev-label">{{ r.m.field.label }}</div>
+                <div class="ev-grid">{% for p in r.photos %}{% if perms.inspections.view_defectphoto %}<a href="{% url 'inspections:photo' p.pk %}" target="_blank" rel="noopener" class="ev-thumb" title="Open photo {{ forloop.counter }}"><img src="{% url 'inspections:photo' p.pk %}" alt="Defect photo {{ forloop.counter }} for {{ r.m.field.label }}" loading="lazy"></a>{% endif %}{% endfor %}</div></div>
+            {% endif %}{% empty %}{% endfor %}
+            {% if not nfail %}<p class="muted" style="margin:0">No out-of-tolerance readings, so no defect photos were needed.</p>
+            {% else %}{% for r in readings %}{% if not r.m.is_within_tolerance and not r.photos %}<p class="error" style="margin:.25rem 0">No photos attached to {{ r.m.field.label }}.</p>{% endif %}{% endfor %}{% endif %}
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <aside class="decision-col">
+      {% if decision %}
+        <div class="panel verdict-panel {% if decision.decision == 'APPROVED' and not decision.concession %}ok{% elif decision.concession %}warn{% else %}bad{% endif %}">
+          <header>{% icon "shield" %}<h2>Decision: {{ decision.get_decision_display }}</h2></header>
+          <div class="body">
+            <dl class="meta-grid" style="grid-template-columns:1fr 1fr">
+              <div><dt>Decided by</dt><dd>{{ decision.decided_by.get_username }}</dd></div><div><dt>When</dt><dd>{{ decision.decided_at|date:"d M Y H:i" }}</dd></div>
+              <div style="grid-column:1/-1"><dt>Remarks</dt><dd>{{ decision.remarks|default:"&ndash;" }}</dd></div>
+            </dl>
+            {% if decision.concession %}
+              <hr><div class="alert alert-warn" style="margin:0">{% icon "alert" %}<div><strong>Concession lot &ndash; permanently flagged in quality history.</strong>Reason: {{ decision.concession.get_reason_code_display }}<br>Justification: {{ decision.concession.justification }}</div></div>
+            {% endif %}
+            {% if quarantine %}<a class="btn btn-block" style="margin-top:1rem" href="{% url 'review:quarantine_detail' quarantine.pk %}">Open quarantine &amp; MRB</a>{% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="panel">
+          <header>{% icon "shield" %}<h2>Your decision</h2></header>
+          <div class="body" style="padding-bottom:.6rem">
+            <p class="muted" style="font-size:.84rem;margin-bottom:.8rem">Final and permanent. It is recorded with your name and the time.</p>
+            <div class="acts">
+              {# Approve #}
+              {% if can_approve %}
+              <details class="act approve" name="decision">
+                <summary><span class="act-ico">{% icon "check" %}</span><span class="act-t"><b>Approve</b><small>Accept every reading. The lot moves on.</small></span>{% icon "chevron" "act-chev" %}</summary>
+                <form class="act-body" method="post" action="{% url 'review:approve' inspection.pk %}">{% csrf_token %}
+                  <div class="field"><label for="ap-remarks">Remarks (optional)</label><textarea id="ap-remarks" name="remarks" rows="2"></textarea></div>
+                  <button type="submit" class="btn-block btn-lg" data-confirm="Approve this inspection? The decision is final and locked.">Approve inspection</button>
+                </form>
+              </details>
+              {% else %}
+              <div class="act locked"><span class="act-ico">{% icon "lock" %}</span><span class="act-t"><b>Approve</b><small>{% if problems.approve %}{{ problems.approve }}{% else %}Your role cannot approve inspections.{% endif %}</small></span></div>
+              {% endif %}
+              {# Concession #}
+              {% if can_concede %}
+              <details class="act concede" name="decision">
+                <summary><span class="act-ico">{% icon "alert" %}</span><span class="act-t"><b>Conditional concession</b><small>Release with an engineering justification.</small></span>{% icon "chevron" "act-chev" %}</summary>
+                <form class="act-body" method="post" action="{% url 'review:concession' inspection.pk %}">{% csrf_token %}
+                  <p class="help" style="margin-top:0">Flagged on every shipping document.</p>
+                  <div class="field"><label for="rc">Reason code<span class="req">*</span></label>
+                  <select id="rc" name="reason_code" required>
+                    <option value="">Select a reason code</option>
+                    {% for value, label in concession_form.reason_code.field.choices %}{% if value %}<option value="{{ value }}">{{ label }}</option>{% endif %}{% endfor %}
+                  </select></div>
+                  <div class="field"><label for="jf">Engineering justification<span class="req">*</span></label>
+                  <textarea id="jf" name="justification" rows="4" required></textarea></div>
+                  <button type="submit" class="btn-accent btn-block btn-lg" data-confirm="Release this lot on concession? This is recorded on every shipping document.">Issue concession</button>
+                </form>
+              </details>
+              {% else %}
+              <div class="act locked"><span class="act-ico">{% icon "lock" %}</span><span class="act-t"><b>Conditional concession</b><small>{% if problems.concession %}{{ problems.concession }}{% elif not may_concede_role %}Only the Quality Manager or an authorised Shift Supervisor can issue a concession.{% else %}Not available.{% endif %}</small></span></div>
+              {% endif %}
+              {# Quarantine #}
+              {% if can_quarantine %}
+              <details class="act reject" name="decision"{% if not can_approve and not can_concede %} open{% endif %}>
+                <summary><span class="act-ico">{% icon "x" %}</span><span class="act-t"><b>Quarantine lot</b><small>Move to the Digital Rejection Holding Area for MRB.</small></span>{% icon "chevron" "act-chev" %}</summary>
+                <form class="act-body" method="post" action="{% url 'review:quarantine' inspection.pk %}">{% csrf_token %}
+                  <div class="field"><label for="q-reason">Why is the lot rejected?<span class="req">*</span></label><textarea id="q-reason" name="reason" rows="3" required></textarea></div>
+                  <button type="submit" class="btn-danger btn-block btn-lg" data-confirm="Quarantine this lot? It moves to the Digital Rejection Holding Area until the MRB decides.">Quarantine lot</button>
+                </form>
+              </details>
+              {% else %}
+              <div class="act locked"><span class="act-ico">{% icon "lock" %}</span><span class="act-t"><b>Quarantine lot</b><small>{% if problems.quarantine %}{{ problems.quarantine }}{% else %}Your role cannot quarantine lots.{% endif %}</small></span></div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="panel">
+        <header>{% icon "user" %}<h2>Reviewer</h2></header>
+        <div class="body">
+          <dl class="meta-grid" style="grid-template-columns:1fr 1fr">
+            <div><dt>Signed in as</dt><dd>{{ user.get_username }}</dd></div><div><dt>Role</dt><dd>{{ user.get_role_display }}</dd></div>
+            <div style="grid-column:1/-1"><dt>Authority on this record</dt><dd class="authority">
+              <span class="badge {% if can_approve %}b-success{% else %}b-neutral{% endif %}">Approve</span>
+              <span class="badge {% if can_concede %}b-success{% else %}b-neutral{% endif %}">Concession</span>
+              <span class="badge {% if can_quarantine %}b-success{% else %}b-neutral{% endif %}">Quarantine</span></dd></div>
+          </dl>
+        </div>
+      </div>
+    </aside>
+  </div>
+  {% endwith %}
+{% endblock %}

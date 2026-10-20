@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% load ui l10n %}
+{% block title %}Inspection #{{ inspection.pk }}{% endblock %}
+{% block header %}
+{% url 'inspections:list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Inspections" url=crumb_url current=inspection.pk %}
+<div class="page-head">
+  <div class="titles">
+    <h1>Inspection #{{ inspection.pk }} {% badge inspection.status inspection.get_status_display %}</h1>
+    <p>{{ inspection.get_checklist_type_display }} checklist &middot; {{ inspection.traveler.work_order.part.part_number }} &times; {{ inspection.traveler.quantity }} on {{ inspection.traveler.work_order.number }}</p>
+  </div>
+  <div class="actions">
+    {% if perms.review.view_supervisordecision and inspection.status != "IN_PROGRESS" %}<a class="btn btn-ghost" href="{% url 'review:detail' inspection.pk %}">{% icon "review" %}Open review</a>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+  <div class="ws-bar{% if inspection.status == 'FROZEN' %} tone-bad{% endif %}">
+    <div class="ws-cell ws-job"><div class="k">{% icon "traveler" %}Job &middot; traveler</div><div class="v">{{ inspection.traveler.work_order.number }}</div><div class="s">{{ inspection.traveler.work_order.part.part_number }} &middot; qty {{ inspection.traveler.quantity }}</div></div>
+    <div class="ws-cell"><div class="k">{% icon "machine" %}Station</div><div class="v">{{ inspection.machine.code }}</div><div class="s">{{ inspection.machine.name }}</div></div>
+    <div class="ws-cell"><div class="k">{% icon "checklist" %}Checklist</div><div class="v">{{ inspection.get_checklist_type_display }}</div><div class="s">Template rev {{ inspection.template.revision }}</div></div>
+    <div class="ws-cell"><div class="k">{% icon "user" %}Inspector</div><div class="v">{{ inspection.inspector.get_username }}</div><div class="s">Started {{ inspection.started_at|date:"d M, H:i" }}</div></div>
+  </div>
+
+  <div class="rd-strip">
+    <div class="lbl">{{ measured }} of {{ total }} <span>readings</span></div>
+    <div class="pips" role="list" aria-label="Readings">
+      {% for row in rows %}{% with m=row.measurement %}<a role="listitem" href="#rd{{ row.field.pk }}" class="pip {% if m %}{% if m.is_within_tolerance %}pass{% else %}fail{% endif %}{% elif row.can_enter %}next{% endif %}" title="{{ row.field.sequence }}. {{ row.field.label }}{% if m %} &ndash; {% if m.is_within_tolerance %}pass{% else %}fail{% endif %}{% endif %}">{{ row.field.sequence }}</a>{% endwith %}{% endfor %}
+    </div>
+  </div>
+
+  {% if inspection.status == "FROZEN" %}
+    <div class="frozen-banner" role="alert">
+      <div class="fz-ico">{% icon "lock" %}</div>
+      <div><h2><span class="badge b-danger">CHECKLIST FROZEN</span> Critical-to-quality failure</h2>
+      <p><strong>{{ inspection.frozen_reason }}</strong></p>
+      <p>The Quality Head has been alerted. No further readings can be entered and a concession is not allowed.{% if perms.review.view_supervisordecision %} <a href="{% url 'review:detail' inspection.pk %}">Open review</a>{% endif %}</p></div>
+    </div>
+  {% elif inspection.status == "SUBMITTED" %}
+    <div class="hero info"><div class="ico">{% icon "review" %}</div><div class="grow"><h2>Submitted &ndash; awaiting supervisor approval</h2><p>Submitted {{ inspection.submitted_at|date:"d M Y H:i" }}.{% if inspection.remarks %} Remarks: {{ inspection.remarks }}{% endif %}</p></div>{% if perms.review.view_supervisordecision %}<a class="btn" href="{% url 'review:detail' inspection.pk %}">Open review</a>{% endif %}</div>
+  {% endif %}
+  {% if inspection.decision %}<div class="alert alert-info">{% icon "info" %}<div><strong>Decision: {{ inspection.decision.get_decision_display }}</strong> by {{ inspection.decision.decided_by.get_username }}{% if perms.review.view_supervisordecision %} &middot; <a href="{% url 'review:detail' inspection.pk %}">review record</a>{% endif %}</div></div>{% endif %}
+
+  <div class="split">
+    <div>
+      {% for row in rows %}
+        {% with f=row.field m=row.measurement %}
+        <section class="rd{% if f.is_ctq %} ctq{% endif %}{% if m %}{% if m.is_within_tolerance %} pass{% else %} fail{% endif %}{% endif %}" id="rd{{ f.pk }}">
+          <div class="rd-head">
+            <span class="rd-idx">{{ f.sequence }}</span>
+            <div class="rd-title">
+              <h3>{{ f.label }}{% if f.pin %} <small class="muted">pin {{ f.pin.number }}</small>{% endif %} {% if f.is_ctq %}<span class="ctq-tag">CTQ</span>{% endif %}</h3>
+              <div class="rd-spec">
+                {% if f.lower_limit is not None and f.upper_limit is not None and f.nominal is not None %}
+                  <span>Nominal <b>{{ f.nominal|floatformat:"4u" }}</b></span><span>Lower <b>{{ f.lower_limit|floatformat:"4u" }}</b></span><span>Upper <b>{{ f.upper_limit|floatformat:"4u" }}</b></span>{% if f.unit %}<span>{{ f.unit }}</span>{% endif %}
+                {% else %}
+                  <span>Spec <b>{{ f.spec_display }}</b></span>
+                {% endif %}
+                {% if f.required_gauge_type %}<span>{% icon "tool" %} {{ f.get_required_gauge_type_display }}</span>{% endif %}
+              </div>
+            </div>
+            <div class="rd-result">
+              {% if m %}{% if m.is_within_tolerance %}<span class="verdict big pass">{% icon "check" %}Pass<span class="vsub">WITHIN TOLERANCE</span></span>{% else %}<span class="verdict big fail">{% icon "x" %}Fail<span class="vsub">OUT OF TOLERANCE</span></span>{% endif %}{% else %}<span class="verdict" id="hint{{ f.pk }}"></span>{% endif %}
+            </div>
+          </div>
+          <div class="rd-body">
+            {% if m %}
+              <div class="rd-grid">
+                <div>
+                  <div class="rd-read">{% if m.value_numeric is not None %}{{ m.value_numeric|floatformat:"4u" }}<small>{{ f.unit }}</small>{% else %}{{ m.display_value }}{% endif %}</div>
+                  <div class="rd-sub">
+                    {% if m.value_numeric is not None and f.nominal is not None %}<span>Deviation <b class="dev">{% deviation m.value_numeric f.nominal %}</b></span>{% endif %}
+                    {% if m.value_numeric is not None and not m.is_within_tolerance and f.lower_limit is not None %}<span>Outside limit by <b class="dev">{% excursion m.value_numeric f.lower_limit f.upper_limit %}</b></span>{% endif %}
+                    {% if m.gauge %}<span>Gauge <b>{{ m.gauge.gauge_id }}</b> &middot; cal. valid to {{ m.gauge.calibration_expiry|date:"d M Y" }}</span>{% endif %}
+                    <span>Recorded {{ m.entered_at|date:"H:i" }} by <b>{{ m.entered_by.get_username }}</b></span>
+                  </div>
+                </div>
+                {% if m.value_numeric is not None and f.lower_limit is not None and f.upper_limit is not None %}
+                  <div class="scale {% if m.is_within_tolerance %}in{% else %}out{% endif %}" style="--pos:{% range_pos m.value_numeric f.lower_limit f.upper_limit %}%;--nom:{% range_pos f.nominal f.lower_limit f.upper_limit %}%" aria-hidden="true">
+                    <div class="scale-track"><span class="scale-band"></span><span class="scale-tick lo"></span><span class="scale-tick nom"></span><span class="scale-tick hi"></span><span class="scale-mark"></span></div>
+                    <div class="scale-labels"><span class="lo">{{ f.lower_limit|floatformat:"4u" }}</span><span class="nom">{{ f.nominal|floatformat:"4u" }}</span><span class="hi">{{ f.upper_limit|floatformat:"4u" }}</span></div>
+                  </div>
+                {% endif %}
+              </div>
+              {% if not m.is_within_tolerance %}
+                <div class="evidence">
+                  <div class="evidence-head"><strong>{% icon "camera" %}Out-of-tolerance reading &ndash; defect evidence</strong>
+                    <span class="evidence-count{% if row.photos|length >= min_photos %} done{% endif %}"><strong>{{ row.photos|length }}</strong> of {{ min_photos }} required photos</span></div>
+                  {% if row.photos %}<div class="shots">{% for p in row.photos %}{% if perms.inspections.view_defectphoto %}<a class="shot" href="{% url 'inspections:photo' p.pk %}" target="_blank" rel="noopener">{% icon "camera" %}photo {{ forloop.counter }}</a>{% else %}<span class="shot">{% icon "camera" %}photo {{ forloop.counter }}</span>{% endif %}{% endfor %}</div>{% endif %}
+                  {% if row.can_photo %}
+                    <form method="post" enctype="multipart/form-data" action="{% url 'inspections:photo_upload' m.pk %}">{% csrf_token %}
+                      <input type="file" name="image" accept="image/*" capture="environment" required aria-label="Defect photo for {{ f.label }}">
+                      <button type="submit" class="btn-lg">{% icon "camera" %}Upload photo</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% elif row.can_enter %}
+              <form method="post" action="{% url 'inspections:measure' inspection.pk f.pk %}" class="measure-form">{% csrf_token %}
+                {% if row.visual %}
+                  <div class="rd-entry" style="grid-template-columns:1fr auto">
+                    <div class="pass-fail" role="radiogroup" aria-label="Result for {{ f.label }}">
+                      <label>{% icon "check" %}<input type="radio" name="result" value="PASS" required> PASS</label>
+                      <label>{% icon "x" %}<input type="radio" name="result" value="FAIL" required> FAIL</label>
+                    </div>
+                    <button type="submit" class="btn-record">Record result</button>
+                  </div>
+                {% else %}
+                  <div class="rd-grid">
+                    <div class="rd-entry" style="grid-template-columns:1fr 1fr">
+                      <div class="field"><label for="v{{ f.pk }}">Reading{% if f.unit %} ({{ f.unit }}){% endif %}</label>
+                        <div class="unit-input" data-unit="{{ f.unit }}"><input class="big" id="v{{ f.pk }}" name="value" inputmode="decimal" autocomplete="off" required placeholder="0.0000"{% if f.lower_limit is not None and f.upper_limit is not None %} data-lsl="{{ f.lower_limit|unlocalize }}" data-usl="{{ f.upper_limit|unlocalize }}" data-nom="{{ f.nominal|unlocalize }}" data-hint="hint{{ f.pk }}" data-scale="sc{{ f.pk }}" data-card="rd{{ f.pk }}"{% endif %}></div></div>
+                      <div class="field"><label for="g{{ f.pk }}">Gauge serial</label><input class="gauge" id="g{{ f.pk }}" name="gauge_id" autocomplete="off" required placeholder="e.g. VC-104"></div>
+                    </div>
+                    {% if f.lower_limit is not None and f.upper_limit is not None %}
+                      <div class="scale" id="sc{{ f.pk }}" style="--pos:50%;--nom:{% range_pos f.nominal f.lower_limit f.upper_limit %}%" aria-hidden="true">
+                        <div class="scale-track"><span class="scale-band"></span><span class="scale-tick lo"></span><span class="scale-tick nom"></span><span class="scale-tick hi"></span><span class="scale-mark"></span></div>
+                        <div class="scale-labels"><span class="lo">{{ f.lower_limit|floatformat:"4u" }}</span><span class="nom">{{ f.nominal|floatformat:"4u" }}</span><span class="hi">{{ f.upper_limit|floatformat:"4u" }}</span></div>
+                      </div>
+                    {% endif %}
+                  </div>
+                  <div class="live" aria-live="polite"><button type="submit" class="btn-record" style="margin-left:auto">Record reading</button></div>
+                {% endif %}
+              </form>
+            {% else %}
+              <p class="muted" style="margin:.4rem 0 0">{% if inspection.status == "FROZEN" %}Not measured &ndash; checklist frozen.{% else %}Not measured.{% endif %}</p>
+            {% endif %}
+          </div>
+        </section>
+        {% endwith %}
+      {% endfor %}
+    </div>
+
+    <aside>
+      <div class="panel">
+        <header>{% icon "inspect" %}<h2>Submission</h2></header>
+        <div class="body">
+          <div class="meter"><strong>{{ measured|pct:total }}%</strong><span>{{ measured }} of {{ total }} readings recorded</span></div>
+          <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ total }}" aria-valuenow="{{ measured }}" style="margin-bottom:1rem"><span style="width:{{ measured|pct:total }}%"></span></div>
+          {% if show_submit %}
+            {% if problems %}
+              <p class="visually-hidden">Cannot submit yet:</p>
+              <ul class="gate-list">{% for p in problems %}<li class="no"><span class="gi">{% icon "x" %}</span><span>{{ p }}</span></li>{% endfor %}</ul>
+            {% else %}
+              <ul class="gate-list"><li class="ok"><span class="gi">{% icon "check" %}</span><span>All readings recorded and defect evidence attached.</span></li></ul>
+            {% endif %}
+            <form method="post" action="{% url 'inspections:submit' inspection.pk %}">{% csrf_token %}
+              <div class="field"><label for="remarks">{{ submit_form.remarks.label }}</label>
+                <textarea id="remarks" name="remarks" rows="3" placeholder="Anything the supervisor should know"></textarea></div>
+              <button type="submit" class="btn-lg btn-block" {% if not can_submit %}disabled{% endif %}>Submit for approval</button>
+            </form>
+          {% elif inspection.remarks %}
+            <dl class="meta-grid" style="grid-template-columns:1fr"><div><dt>Inspector remarks</dt><dd>{{ inspection.remarks }}</dd></div></dl>
+          {% else %}
+            <p class="muted" style="margin:0">This inspection is {{ inspection.get_status_display|lower }}; readings are read-only.</p>
+          {% endif %}
+        </div>
+      </div>
+    </aside>
+  </div>
+{% endblock %}

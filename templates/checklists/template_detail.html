@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{{ tpl }}{% endblock %}
+{% block header %}
+{% url 'checklists:list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Checklists" url=crumb_url current=tpl.part.part_number %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Checklist template</div>
+<h1>{{ tpl.part.part_number }} &ndash; {{ tpl.get_checklist_type_display }}{% if tpl.operation_number %} (Op {{ tpl.operation_number }}){% endif %} &middot; Rev {{ tpl.revision }} {% badge tpl.status tpl.get_status_display %}</h1></div>
+<div class="actions">
+  {% if can_edit %}<a class="btn btn-ghost" href="{% url 'admin:checklists_checklisttemplate_change' tpl.pk %}">Edit in admin</a>{% endif %}
+  {% if can_submit %}<form method="post" action="{% url 'checklists:submit' tpl.pk %}" class="inline">{% csrf_token %}<button type="submit">Submit for approval</button></form>{% endif %}
+  {% if can_review %}<form method="post" action="{% url 'checklists:approve' tpl.pk %}" class="inline">{% csrf_token %}<button type="submit" data-confirm="Approve and release this template? Released revisions cannot be edited.">Approve &amp; release</button></form>{% endif %}
+  {% if can_revise %}<form method="post" action="{% url 'checklists:revise' tpl.pk %}" class="inline">{% csrf_token %}<button type="submit">Create new revision</button></form>{% endif %}
+</div></div>
+{% endblock %}
+{% block content %}
+  <div class="summary">
+    <div class="sum accent"><div class="k">Status</div><div class="v">{{ tpl.get_status_display }}</div></div>
+    <div class="sum"><div class="k">Author</div><div class="v">{{ tpl.created_by.get_username }}</div></div>
+    <div class="sum"><div class="k">Approved by</div><div class="v">{% if tpl.approved_by %}{{ tpl.approved_by.get_username }}{% else %}&ndash;{% endif %}</div>{% if tpl.approved_by %}<div class="s">{{ tpl.approved_at|date:"d M Y H:i" }}</div>{% endif %}</div>
+    <div class="sum {% if tpl.drawing_pdf %}accent{% else %}bad{% endif %}"><div class="k">Drawing</div><div class="v">{% if tpl.drawing_pdf %}<a href="{% url 'checklists:drawing' tpl.pk %}" target="_blank" rel="noopener">Open drawing (PDF)</a>{% else %}<span class="error">No drawing uploaded.</span>{% endif %}</div></div>
+  </div>
+  {% if tpl.customer_agreement %}<div class="alert alert-info">{% icon "info" %}<div>Customer agreement: {{ tpl.customer_agreement }}</div></div>{% endif %}
+  {% if tpl.review_notes %}<div class="alert alert-danger">{% icon "alert" %}<div><strong>Sent back</strong>{{ tpl.review_notes }}</div></div>{% endif %}
+  {% if can_review %}
+    <form method="post" action="{% url 'checklists:reject' tpl.pk %}" class="section warn form-narrow">{% csrf_token %}
+      <header>{% icon "x" %}<h3>Send back to the engineer</h3></header>
+      <div class="body"><div class="field"><label for="reason">Send back to the engineer &ndash; reason<span class="req">*</span></label><input id="reason" name="reason" required></div>
+      <button type="submit" class="btn-danger" data-confirm="Send this template back to the engineer?">Reject</button></div>
+    </form>
+  {% endif %}
+
+  <section class="section"><header>{% icon "checklist" %}<h2>Inspection fields</h2></header>
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Label</th><th>Pin</th><th>Type</th><th>Specification</th><th>Tool</th><th>CTQ</th></tr></thead>
+    <tbody>
+      {% for f in fields %}
+        <tr{% if f.is_ctq %} class="row-ctq"{% endif %}>
+          <td>{{ f.sequence }}</td>
+          <td>{{ f.label }}</td>
+          <td>{% if f.pin %}{{ f.pin.number }}{% else %}&ndash;{% endif %}</td>
+          <td>{{ f.get_field_type_display }}</td>
+          <td>{{ f.spec_display }}</td>
+          <td>{{ f.get_required_gauge_type_display|default:"&ndash;" }}</td>
+          <td>{% if f.is_ctq %}<span class="ctq-tag">CTQ</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7">No fields yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div></section>
+
+  <section class="section"><header>{% icon "part" %}<h2>Blueprint pins</h2></header>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Pin</th><th>Page</th><th>X %</th><th>Y %</th><th>Colour</th></tr></thead>
+    <tbody>
+      {% for p in pins %}
+        <tr><td>{{ p.number }}</td><td>{{ p.page }}</td><td>{{ p.x_pct }}</td><td>{{ p.y_pct }}</td>
+            <td><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:{{ p.color }}"></span> {{ p.color }}</td></tr>
+      {% empty %}
+        <tr><td colspan="5">No pins placed.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div></section>
+{% endblock %}

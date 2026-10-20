@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Audit log{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Audit log" %}
+<div class="page-head"><div class="titles"><h1>Audit log <small>(read-only)</small></h1>
+<p>Append-only record of every important action. Entries cannot be edited or deleted.</p></div>
+<div class="status-chip"><span class="badge b-neutral">Tamper-protected</span></div></div>
+{% endblock %}
+{% block content %}
+  <p class="lock-note">{% icon "lock" %}Newest first. Search and action filters apply to the entries on this page.</p>
+  <div class="filter-bar">
+    <input type="search" class="search" placeholder="Search this page by user, record or action…" aria-label="Search audit log" data-table-filter="tbl-audit-log-list">
+    <div class="rail-seg compact" data-seg-filter="tbl-audit-log-list" role="group" aria-label="Filter by action">
+      <button type="button" data-seg="all" aria-pressed="true"><span class="l">All actions</span></button>
+      <button type="button" data-seg="CREATE" aria-pressed="false"><span class="l">Create</span></button>
+      <button type="button" data-seg="UPDATE" aria-pressed="false"><span class="l">Update</span></button>
+      <button type="button" data-seg="DECISION" aria-pressed="false"><span class="l">Decision</span></button>
+      <button type="button" data-seg="SIGN_OFF" aria-pressed="false"><span class="l">Sign-off</span></button>
+      <button type="button" data-seg="LOGIN_FAILED" aria-pressed="false"><span class="l">Login failed</span></button>
+    </div>
+  </div>
+  <div class="table-wrap sticky"><table id="tbl-audit-log-list" class="audit">
+    <thead>
+      <tr><th>Time</th><th>User</th><th>Action</th><th>Record</th><th>Change</th><th>Origin</th></tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+        <tr data-cat="{{ e.action }}">
+          <td class="mono nowrap">{{ e.timestamp|date:"Y-m-d" }}<span class="sub">{{ e.timestamp|date:"H:i:s" }}</span></td>
+          <td>{{ e.user_label|default:"-" }}</td>
+          <td><span class="badge {% if e.action == 'DELETE' or e.action == 'LOGIN_FAILED' %}b-danger{% elif e.action == 'DECISION' or e.action == 'SIGN_OFF' %}b-success{% elif e.action == 'UPDATE' %}b-warn{% else %}b-info{% endif %}">{{ e.get_action_display }}</span></td>
+          <td>{{ e.model_name }} <span class="muted mono">{{ e.object_id }}</span></td>
+          <td class="chg">{% if e.field_name %}<span class="fld">{{ e.field_name }}</span>
+            <span class="diff"><span class="was">{{ e.previous_value|default:"–" }}</span><span class="arr">&rarr;</span><span class="now">{{ e.new_value|default:"–" }}</span></span>{% else %}<span class="muted">–</span>{% endif %}</td>
+          <td class="mono">{{ e.ip_address|default:"-" }}<span class="sub">{{ e.device_serial|default:"-" }}</span></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">{% include "partials/_empty_card.html" with icon="audit" title="No entries yet" text="Actions such as sign-offs, decisions and record changes will be recorded here as they happen." %}</td></tr>
+      {% endfor %}
+      <tr data-seg-empty style="display:none"><td colspan="6"><div class="empty-card"><h3>No entries of this type on this page</h3><p>Try another action filter or page.</p></div></td></tr>
+    </tbody>
+  </table></div>
+  {% include "partials/_pagination.html" %}
+{% endblock %}

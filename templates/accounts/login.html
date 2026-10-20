@@ -1,0 +1,43 @@
+{% extends "base_auth.html" %}
+{% load ui %}
+{% block body %}
+<div class="login-page">
+  <section class="login-hero">
+    <a class="brand" href="{% url 'accounts:login' %}"><span class="brand-mark">{% icon "factory" %}</span><span>Factory QC</span></a>
+    <div>
+      <div class="tagline">Quality &bull; Production &bull; Traceability</div>
+      <h1>Every part, every heat, every sign-off &mdash; on record.</h1>
+      <p>Shop-floor inspection, material receiving and dispatch control for Zapuza Technologies LLP.</p>
+      <ul>
+        <li>{% icon "inspect" %}<span>Inspections with tolerance checks, CTQ alerts and supervisor release</span></li>
+        <li>{% icon "material" %}<span>Heat-number traceability from raw material to shipment</span></li>
+        <li>{% icon "shield" %}<span>Append-only audit trail on every quality decision</span></li>
+      </ul>
+    </div>
+    <div class="foot">Authorised employees only. Activity is logged.</div>
+  </section>
+  <section class="login-panel">
+    <div class="login-card">
+      <h2>Sign in</h2>
+      <p class="lead">Use your Employee ID or username.</p>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{% icon "alert" %}<div><strong>{{ form.non_field_errors.0 }}</strong></div></div>
+        {% endif %}
+        {% for field in form %}
+          <div class="field{% if field.errors %} has-error{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {% if field.name == "password" %}
+              <div class="pw-wrap">{{ field }}<button type="button" class="pw-toggle" data-pw-toggle="{{ field.id_for_label }}" aria-pressed="false">Show</button></div>
+            {% else %}{{ field }}{% endif %}
+            {% for e in field.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+          </div>
+        {% endfor %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <button type="submit" class="btn-lg btn-block">Sign in</button>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}

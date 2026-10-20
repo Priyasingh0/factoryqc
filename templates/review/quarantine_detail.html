@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Quarantine {{ quarantine.traveler.work_order.number }}{% endblock %}
+{% block header %}
+{% url 'review:quarantine_list' as crumb_url %}{% include "partials/_crumbs.html" with parent="Quarantine & MRB" url=crumb_url current=quarantine.traveler.work_order.number %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Material Review Board</div>
+<h1>Quarantine &ndash; {{ quarantine.traveler.work_order.number }} {% badge quarantine.status quarantine.get_status_display %}</h1>
+<p>{{ quarantine.traveler.work_order.part.part_number }} &times; {{ quarantine.traveler.quantity }}</p></div>
+<div class="actions"><a class="btn btn-ghost" href="{% url 'review:detail' quarantine.inspection_id %}">Inspection #{{ quarantine.inspection_id }}</a></div></div>
+{% endblock %}
+{% block content %}
+  <div class="summary">
+    <div class="sum bad"><div class="k">Location</div><div class="v">{{ quarantine.location }}</div></div>
+    <div class="sum"><div class="k">Status</div><div class="v">{{ quarantine.get_status_display }}</div></div>
+    <div class="sum"><div class="k">Lot</div><div class="v">{{ quarantine.traveler.get_status_display }}</div></div>
+    <div class="sum"><div class="k">Since</div><div class="v">{{ quarantine.created_at|date:"d M H:i" }}</div></div>
+  </div>
+  <div class="alert alert-danger">{% icon "lock" %}<div><strong>Reason:</strong> {{ quarantine.reason }} (<a href="{% url 'review:detail' quarantine.inspection_id %}">inspection #{{ quarantine.inspection_id }}</a>)<br>No machine can start work on this lot until the Material Review Board has executed a disposition.</div></div>
+
+  {% if disposition %}
+    <section class="section">
+      <header>{% icon "shield" %}<h2>Material Review Board</h2><div class="right">{% badge disposition.disposition disposition.get_disposition_display %}</div></header>
+      <div class="body">
+        <p><strong>{{ disposition.get_disposition_display }}</strong> proposed by {{ disposition.proposed_by.get_username }}: {{ disposition.notes }}</p>
+        {% if disposition.rework_from_op %}<p>Rework restarts at op {{ disposition.rework_from_op }}.</p>{% endif %}
+        {% if disposition.scrap_cost_code %}<p>Scrap cost code {{ disposition.scrap_cost_code }}; scrap bin verification confirmed.</p>{% endif %}
+        {% if disposition.debit_note_ref %}<p>Debit note request: {{ disposition.debit_note_ref }}</p>{% endif %}
+        {% if disposition.disposition == "CUSTOMER_CONCESSION" %}
+          <p>Customer approval: {% if disposition.customer_approval_file %}<a href="{% url 'review:customer_approval_file' disposition.pk %}" target="_blank">uploaded document</a>{% else %}<span class="error">not yet uploaded &ndash; the batch stays on hold</span>{% endif %}</p>
+        {% endif %}
+        <h3>Board sign-offs</h3>
+        <p>Board sign-offs:
+          {% for label, signed in board %}<span class="badge {% if signed %}b-success{% else %}b-warn{% endif %}">{{ label }}: {% if signed %}signed{% else %}pending{% endif %}</span> {% endfor %}</p>
+        {% if disposition.is_executed %}
+          <div class="alert alert-success">{% icon "check" %}<div><strong>Executed {{ disposition.decided_at|date:"d M Y H:i" }}.</strong>
+            {% if disposition.rework_traveler %}<a href="{% url 'production:traveler_detail' disposition.rework_traveler_id %}">Open the rework traveler</a>{% endif %}</div></div>
+        {% else %}
+          {% for b in blockers %}<div class="alert alert-warn">{% icon "alert" %}<div>{{ b }}</div></div>{% endfor %}
+          <div class="row">
+            {% if can_sign %}<form method="post" action="{% url 'review:sign' disposition.pk %}">{% csrf_token %}<button type="submit" class="btn-lg" data-confirm="Sign this disposition as {{ user.get_role_display }}? Your sign-off is permanent.">Sign as {{ user.get_role_display }}</button></form>{% endif %}
+            {% if can_upload %}
+              <form method="post" enctype="multipart/form-data" action="{% url 'review:customer_approval' disposition.pk %}" class="row">{% csrf_token %}
+                <input type="file" name="document" accept=".pdf,image/jpeg,image/png" required style="max-width:340px">
+                <button type="submit">Upload customer approval</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </section>
+  {% elif can_propose %}
+    <form method="post" action="{% url 'review:propose' quarantine.pk %}">{% csrf_token %}
+      <section class="form-section">
+        <h3>Propose a disposition</h3>
+        <div class="field"><label for="id_disposition">Disposition<span class="req">*</span></label>{{ disposition_form.disposition }}{% for e in disposition_form.disposition.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+        <div class="field"><label for="id_notes">{{ disposition_form.notes.label }}</label>{{ disposition_form.notes }}{% for e in disposition_form.notes.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+      </section>
+      <section class="form-section">
+        <h3>Rework</h3>
+        <div class="field"><label for="id_rework_from_op">{{ disposition_form.rework_from_op.label }}</label>{{ disposition_form.rework_from_op }}
+          <div class="help">Rework only. Operations: {% for r in routing %}{{ r.op_number }} ({{ r.name }}){% if not forloop.last %}, {% endif %}{% endfor %}</div>{% for e in disposition_form.rework_from_op.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+      </section>
+      <section class="form-section">
+        <h3>Scrap &amp; supplier recovery</h3>
+        <div class="grid cols-2">
+          <div class="field"><label for="id_scrap_cost_code">Scrap cost code</label>{{ disposition_form.scrap_cost_code }}{% for e in disposition_form.scrap_cost_code.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+          <div class="field"><label for="id_debit_note_ref">{{ disposition_form.debit_note_ref.label }}</label>{{ disposition_form.debit_note_ref }}{% for e in disposition_form.debit_note_ref.errors %}<div class="field-error">{{ e }}</div>{% endfor %}</div>
+        </div>
+        <div class="field"><label>{{ disposition_form.scrap_bin_verified }} {{ disposition_form.scrap_bin_verified.label }}</label></div>
+      </section>
+      <button type="submit" class="btn-lg">Propose disposition</button>
+    </form>
+  {% else %}
+    <section class="section"><div class="body">{% include "partials/_empty_card.html" with icon="shield" title="No disposition proposed" text="No disposition has been proposed yet." %}</div></section>
+  {% endif %}
+{% endblock %}

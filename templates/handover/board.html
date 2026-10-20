@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Shift handover{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Handover" %}
+<div class="page-head"><div class="titles"><h1>Shift handover logbook</h1>
+<p>At every shift change the outgoing operator completes the handover for the machine, a different supervisor countersigns it, and the incoming worker acknowledges it. Until then the machine is locked for the next shift.</p></div></div>
+{% endblock %}
+{% block content %}
+  {% if pending %}
+    <section class="section warn">
+      <header>{% icon "clock" %}<h2>Waiting for sign-off or acknowledgement</h2><div class="right">{{ pending|length }} open</div></header>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Machine</th><th>Shift</th><th>Handed over by</th><th>Status</th><th class="actions"></th></tr></thead>
+        <tbody>
+        {% for h in pending %}
+          <tr>
+            <td><strong>{{ h.machine.code }}</strong></td>
+            <td>{{ h.get_shift_display }}<span class="sub">{{ h.shift_date|date:"d M" }}</span></td>
+            <td>{{ h.outgoing_by.get_username }}</td>
+            <td><span class="badge b-warn">{{ h.status_label }}</span></td>
+            <td class="actions"><a class="btn btn-sm" href="{% url 'handover:detail' h.pk %}">Open</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+    </section>
+  {% endif %}
+
+  <div class="filter-bar">
+    <input type="search" class="search" placeholder="Search machines&hellip;" aria-label="Search machines" data-table-filter="tbl-handover">
+  </div>
+  <div class="table-wrap sticky"><table id="tbl-handover" class="lots">
+    <thead><tr><th>Machine</th><th>Next-shift lock</th><th>Latest handover</th><th>Transition</th>{% if can_create %}<th class="actions"></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td><strong>{{ row.machine.code }}</strong><span class="sub">{{ row.machine.department.name }}</span></td>
+        <td>
+          {% if row.problem %}<span class="badge b-danger">Locked</span><span class="blocker" style="display:block;margin-top:.25rem">{{ row.problem }}</span>
+          {% elif row.missing %}<span class="badge b-warn">Handover missing</span><span class="sub">{{ row.missing }}</span>
+          {% else %}<span class="badge b-success">Clear</span>{% endif %}
+        </td>
+        <td>{% if row.latest %}<a href="{% url 'handover:detail' row.latest.pk %}" class="row-link">{{ row.latest.get_shift_display }} &middot; {{ row.latest.shift_date|date:"d M" }}</a><span class="sub">by {{ row.latest.outgoing_by.get_username }}</span>{% else %}<span class="muted">None yet</span>{% endif %}</td>
+        <td>{% if row.latest %}{% with s=row.latest.status %}
+          <span class="gates"><span class="gate ok"><i>{% icon "check" %}</i>Handed over</span><span class="gate {% if s != 'AWAITING_SIGNOFF' %}ok{% else %}wait{% endif %}"><i>{% if s != 'AWAITING_SIGNOFF' %}{% icon "check" %}{% else %}{% icon "clock" %}{% endif %}</i>Countersigned</span><span class="gate {% if s == 'ACKNOWLEDGED' %}ok{% else %}wait{% endif %}"><i>{% if s == 'ACKNOWLEDGED' %}{% icon "check" %}{% else %}{% icon "clock" %}{% endif %}</i>Acknowledged</span></span>
+        {% endwith %}{% else %}<span class="muted">&ndash;</span>{% endif %}</td>
+        {% if can_create %}<td class="actions"><a class="btn btn-sm {% if not row.missing %}btn-ghost{% endif %}" href="{% url 'handover:new' row.machine.pk %}">Hand over</a></td>{% endif %}
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">{% include "partials/_empty_card.html" with icon="machine" title="No active machines" text="Machines appear here once they are added to the plant register." %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

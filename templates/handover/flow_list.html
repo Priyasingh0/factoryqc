@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Release flow{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Release flow" %}
+<div class="page-head"><div class="titles"><div class="eyebrow">Production</div><h1>Material to dispatch: release flow</h1>
+<p>Each lot moves through the stages in order. A blocked stage names exactly what is missing, and the same rules stop the gate pass, packing slip, invoice and labels.</p></div></div>
+{% endblock %}
+{% block content %}
+  <div class="filter-bar"><input type="search" class="search" placeholder="Search work order or status…" aria-label="Search lots" data-table-filter="tbl-flow-list"></div>
+  <div class="table-wrap sticky"><table id="tbl-flow-list">
+    <thead><tr><th>Work order</th><th>Lot</th><th>Material</th><th>Production</th><th>Quality</th><th>Final PDI</th><th>Dispatch</th></tr></thead>
+    <tbody>
+    {% for flow in flows %}
+      <tr>
+        <td><a class="row-link" href="{% url 'handover:flow_detail' flow.traveler.pk %}">{{ flow.traveler.work_order.number }}</a></td>
+        <td>{{ flow.traveler.quantity }} &middot; {% badge flow.traveler.status flow.traveler.get_status_display %}</td>
+        {% for stage in flow.stages %}<td><span class="chip {% if stage.ok %}green{% else %}red{% endif %}">{% if stage.ok %}OK{% else %}Blocked{% endif %}</span></td>{% endfor %}
+      </tr>
+    {% empty %}<tr><td colspan="7">{% include "partials/_empty_card.html" with icon="flow" title="No travelers yet" text="Release a work order to generate a job traveler and track it through the flow." %}</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+{% endblock %}

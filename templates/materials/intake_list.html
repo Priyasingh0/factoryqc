@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Raw material intake{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Materials" %}
+<div class="page-head"><div class="titles"><h1>Raw material intake</h1>
+<p>Every delivery is traced from dock receipt to clearance or quarantine by heat number.</p></div>
+<div class="actions">
+  {% if perms.materials.view_sncr %}<a class="btn btn-ghost" href="{% url 'materials:sncr_list' %}">SNCRs</a>{% endif %}
+  {% if perms.materials.view_supplier %}<a class="btn btn-ghost" href="{% url 'materials:suppliers' %}">Suppliers</a>{% endif %}
+  {% if perms.materials.create_intake %}<a class="btn" href="{% url 'materials:new' %}">{% icon "plus" %}New intake</a>{% endif %}
+</div></div>
+{% endblock %}
+{% block content %}
+  <div class="filter-bar">
+    <input type="search" class="search" placeholder="Search lot, supplier, PO, grade or heat number&hellip;" aria-label="Search intakes" data-table-filter="tbl-intake-list">
+    <div class="pills" role="group" aria-label="Filter by status"><a class="pill{% if not status %} on{% endif %}" href="{% url 'materials:list' %}">All</a>
+      {% for value, label in statuses %}<a class="pill{% if value == status %} on{% endif %}" href="?status={{ value }}">{{ label }}</a>{% endfor %}</div>
+  </div>
+  <div class="table-wrap sticky"><table id="tbl-intake-list" class="lots">
+    <thead><tr><th>Lot</th><th>Heat number &middot; grade</th><th>Supplier</th><th class="num">Quantity</th><th>MTC</th><th>Lab</th><th>Quality</th><th>SNCR</th><th class="actions"></th></tr></thead>
+    <tbody>
+      {% for i in object_list %}
+        {% with lab=i.lab_result sncr=i.sncr %}
+        <tr class="{% if i.status == 'SUPPLIER_QUARANTINE' %}urg urg-bad{% endif %}">
+          <td><a class="row-link" href="{% url 'materials:detail' i.pk %}">{{ i.lot_number }}</a><span class="sub">Received {{ i.received_at|date:"d M Y" }}</span></td>
+          <td><span class="mono">{{ i.heat_number }}</span><span class="sub">{{ i.grade.code }}</span></td>
+          <td>{{ i.supplier.name }}<span class="sub">PO {{ i.po_number }}</span></td>
+          <td class="num">{{ i.quantity|floatformat:"-3" }} {{ i.get_unit_display }}</td>
+          <td>{% if i.mtc_verified_at %}<span class="badge b-success">Verified</span>{% else %}<span class="badge b-warn">Awaiting review</span>{% endif %}</td>
+          <td>{% if lab %}{% if lab.passed %}<span class="badge b-success">Pass</span>{% else %}<span class="badge b-danger">Fail</span>{% endif %}{% elif i.lab_required %}<span class="badge b-warn">Pending</span>{% else %}<span class="badge b-neutral">Not required</span>{% endif %}</td>
+          <td>{% badge i.status i.get_status_display %}</td>
+          <td>{% if sncr %}{% badge sncr.status sncr.get_status_display %}{% else %}<span class="muted">&ndash;</span>{% endif %}</td>
+          <td class="actions"><details class="menu" data-menu><summary aria-label="Actions for {{ i.lot_number }}">{% icon "more" %}</summary>
+            <div class="popover"><a class="item" href="{% url 'materials:detail' i.pk %}">{% icon "eye" %}Open lot</a><a class="item" href="{% url 'materials:mtc_file' i.pk %}" target="_blank" rel="noopener">{% icon "file" %}Open MTC file</a></div></details></td>
+        </tr>
+        {% endwith %}
+      {% empty %}
+        <tr><td colspan="9">{% include "partials/_empty_card.html" with icon="material" title="No intake records" text="No intake records. Log a delivery to start tracing a heat number." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% include "partials/_pagination.html" %}
+{% endblock %}

@@ -1,0 +1,13 @@
+{% load ui %}
+<dialog class="modal" id="confirm-dialog" aria-labelledby="confirm-title">
+  <div class="modal-body">
+    <div class="modal-icon">{% icon "alert" %}</div>
+    <h3 id="confirm-title">Please confirm</h3>
+    <p data-confirm-text></p>
+    <p class="muted">This action is recorded in the audit log and cannot be undone.</p>
+  </div>
+  <div class="modal-foot">
+    <button type="button" class="btn-ghost" data-confirm-cancel>Cancel</button>
+    <button type="button" class="btn-danger" data-confirm-ok>Yes, continue</button>
+  </div>
+</dialog>

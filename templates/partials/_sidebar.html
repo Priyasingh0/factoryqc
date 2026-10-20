@@ -1,0 +1,19 @@
+{% load ui %}
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+  <a class="brand" href="{% url 'accounts:home' %}" title="Factory QC">
+    <span class="brand-mark">{% icon "factory" %}</span>
+    <span>Factory QC<small>Zapuza Technologies</small></span>
+  </a>
+  <nav class="nav">
+    {% for section in nav_sections %}
+      {% if not forloop.first %}<div class="nav-group-gap"></div>{% endif %}
+      <div class="nav-title">{{ section.title }}</div>
+      {% for item in section.items %}
+        <a href="{{ item.url }}" title="{{ item.label }}"{% if item.active %} class="active" aria-current="page"{% endif %}>{% icon item.icon %}<span>{{ item.label }}</span></a>
+      {% endfor %}
+    {% endfor %}
+  </nav>
+  <div class="sidebar-foot">
+    <button type="button" class="rail-toggle" data-rail-toggle aria-label="Collapse or expand sidebar" title="Collapse sidebar">{% icon "chevrons" %}<span>Collapse</span></button>
+  </div>
+</aside>

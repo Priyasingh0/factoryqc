@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Shipping interlock{% endblock %}
+{% block content %}
+  <div style="max-width:820px">
+  <div class="clear-hero stop"><div class="ch-ico">{% icon "lock" %}</div><div><div class="ch-state">SHIPPING INTERLOCK &ndash; {{ title }} locked</div><p class="ch-sub">This document cannot be printed until every requirement below is fulfilled.</p></div><span></span></div>
+  <section class="section danger"><header>{% icon "alert" %}<h2>Unmet requirements</h2></header>
+    <div class="body"><p>This document cannot be printed until every requirement below is fulfilled:</p>
+    <ul>{% for p in problems %}<li class="error">{{ p }}</li>{% endfor %}</ul>
+    <p class="muted">This attempt has been recorded in the audit log.</p>
+    <a class="btn btn-ghost" href="{% url 'dispatch:board' %}">&larr; Dispatch board</a></div></section>
+  </div>
+{% endblock %}

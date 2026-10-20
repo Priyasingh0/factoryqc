@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Floor monitor{% endblock %}
+{% block header %}
+{% include "partials/_crumbs.html" with current="Floor monitor" %}
+<div class="page-head"><div class="titles"><h1>Floor monitor <span class="live-dot">Live</span></h1>
+<p>Elapsed, active machining and idle queue time for every active lot. A lot waiting more than {{ queue_limit_hours }} hours between stations is stuck; a machine running more than one and a half times its usual cycle is slow.</p></div>
+<div class="actions"><button type="button" class="toggle" data-autorefresh="30" aria-pressed="false" title="Reload every 30 seconds">{% icon "clock" %}Auto-refresh</button><a class="btn btn-ghost" href="{% url 'handover:flow_monitor' %}">Refresh</a></div></div>
+{% endblock %}
+{% block content %}
+  {% with slow=tiles|count_is:"status=SLOW" run=tiles|count_is:"status=OK" idle=tiles|count_is:"status=IDLE" held=lots|count_is:"state=HOLD" %}
+  <div class="ops-bar">
+    <div class="ops-cell ok"><div class="n">{{ run }}</div><div class="l">Running</div></div>
+    <div class="ops-cell bad"><div class="n{% if slow %} on{% endif %}">{{ slow }}</div><div class="l">Running slow</div></div>
+    <div class="ops-cell"><div class="n">{{ idle }}</div><div class="l">Idle machines</div></div>
+    <div class="ops-cell warn"><div class="n{% if stuck %} on{% endif %}">{{ stuck|length }}</div><div class="l">Stuck in queue</div></div>
+    <div class="ops-cell info"><div class="n">{{ held }}</div><div class="l">On process hold</div></div>
+  </div>
+
+  <section class="section {% if slow or stuck %}danger{% endif %}">
+    <header>{% icon "alert" %}<h2>Operational alerts</h2><div class="right">{{ slow }} slow &middot; {{ stuck|length }} stuck</div></header>
+    {% if slow or stuck %}
+      <ul class="alert-rows">
+        {% for tile in tiles %}{% if tile.status == "SLOW" %}
+          <li class="bad"><span class="ai">{% icon "pulse" %}</span><span><strong>{{ tile.machine.code }}</strong> is running slow on {{ tile.operation.traveler.work_order.number }} &middot; {{ tile.operation.routing_operation.name }}<br><small>{{ tile.running|tdur }} so far against a usual {{ tile.usual|tdur }}</small></span><span class="badge b-danger">Slow</span></li>
+        {% endif %}{% endfor %}
+        {% for job in stuck %}
+          <li><span class="ai">{% icon "clock" %}</span><span><strong>{{ job.traveler.work_order.number }}</strong> has waited {{ job.waiting|tdur }} for {{ job.current_operation.routing_operation }}<br><small>Waiting since {{ job.waiting_since|date:"d M H:i" }}</small></span><a class="btn btn-sm btn-ghost" href="{% url 'handover:flow_detail' job.traveler.pk %}">Open flow</a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="body" style="display:flex;gap:.6rem;align-items:center"><span class="badge b-success">All clear</span><span class="muted">No machine is running slow and no lot is stuck in a queue.</span></div>
+    {% endif %}
+  </section>
+  {% endwith %}
+
+  <h2 style="margin:1.25rem 0 .6rem;font-size:.95rem">Machines</h2>
+  <div class="mon-grid" style="margin-bottom:1.25rem">
+    {% for tile in tiles %}
+      <div class="mon-tile {% if tile.status == 'SLOW' %}slow{% elif tile.status == 'OK' %}ok{% else %}idle{% endif %}">
+        <div class="mon-top"><span class="mon-code">{{ tile.machine.code }}</span>
+        {% if tile.status == "IDLE" %}<span class="badge b-neutral">Idle</span>{% elif tile.status == "SLOW" %}<span class="badge b-danger">Running slow</span>{% else %}<span class="badge b-success">Running</span>{% endif %}</div>
+        {% if tile.status != "IDLE" %}
+          <div class="mon-job">{{ tile.operation.traveler.work_order.number }} &middot; {{ tile.operation.routing_operation.name }}</div>
+          <div class="mon-time"><strong>{{ tile.running|tdur }}</strong><small>{% if tile.usual %}usual {{ tile.usual|tdur }}{% else %}so far{% endif %}</small></div>
+        {% else %}<div class="mon-job">No job running</div>{% endif %}
+      </div>
+    {% empty %}<div class="section" style="grid-column:1/-1"><div class="body">{% include "partials/_empty_card.html" with icon="machine" title="No active machines" text="Machines appear here once they are added in the plant register." %}</div></div>{% endfor %}
+  </div>
+
+  <section class="section">
+    <header>{% icon "traveler" %}<h2>All active lots</h2><div class="right">Longest wait first</div></header>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Work order</th><th>State</th><th class="num">Elapsed</th><th class="num">Active</th><th class="num">Hold</th><th class="num">Idle queue</th></tr></thead>
+      <tbody>{% for job in lots %}
+        <tr><td><a class="row-link" href="{% url 'handover:flow_detail' job.traveler.pk %}">{{ job.traveler.work_order.number }}</a>{% if job.stuck %} <span class="badge b-warn">Stuck</span>{% endif %}<span class="sub">{{ job.traveler.work_order.part.part_number }}</span></td>
+            <td>{% badge job.state job.state|title %}</td><td class="num">{{ job.elapsed|tdur }}</td><td class="num">{{ job.active|tdur }}</td><td class="num">{{ job.hold|tdur }}</td><td class="num"><strong>{{ job.queue|tdur }}</strong></td></tr>
+      {% empty %}<tr><td colspan="6" class="empty-cell">No active lots.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+{% endblock %}
