@@ -319,7 +319,7 @@ confirm that at least one test fails: 48 deliberate one-line breakages of the St
 
 Screen recording with voice narration explaining the project structure, key business rules, and a live walkthrough of the implemented workflows.
 
-**Video:** [Add demo video link here]
+**Video:** **Video:** [Watch the Demo Video](https://drive.google.com/file/d/1sy2Jnw8G3bjM0ZsiS9Ci-sBrcgQ0ciED/view?usp=sharing)
 
 ## Roles
 
